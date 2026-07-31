@@ -158,6 +158,64 @@ Klient rozlišuje případy podle stabilního `error` kódu, ne podle textu zpr�
 
 ---
 
+## Mobilní aplikace
+
+```powershell
+cd app
+flutter pub get
+flutter run                       # vybere připojené zařízení / emulátor
+flutter run -d chrome             # rychlá zkouška v prohlížeči
+flutter test                      # unit testy
+flutter analyze                   # statická analýza
+```
+
+**Backend musí běžet**, jinak se aplikace nepřihlásí. Adresa API se odvozuje automaticky:
+Android emulátor `http://10.0.2.2:3000/api/v1`, jinak `http://localhost:3000/api/v1`.
+Přepsat lze při spuštění:
+
+```powershell
+flutter run --dart-define=API_BASE_URL=https://api.example.com/api/v1
+```
+
+### Struktura
+
+```
+lib/
+  main.dart                    kořen aplikace, lokalizace na cs_CZ
+  src/
+    router.dart                go_router + přesměrování podle stavu přihlášení
+    core/
+      api_client.dart          Dio, hlavička s tokenem, automatický refresh při 401
+      api_service.dart         typované metody, jedna na endpoint
+      token_storage.dart       tokeny v šifrovaném úložišti zařízení
+      date_utils.dart          práce s daty a české formátování
+      app_theme.dart           Material 3 téma, světlé i tmavé
+    models/models.dart         datové modely + fromJson
+    providers/providers.dart   Riverpod: auth, rodina, šablona, plánovač, galerie
+    features/
+      auth/                    přihlášení a registrace
+      onboarding/              založení rodiny nebo přijetí pozvánky
+      home/                    aktuální týden s indikátory naplněnosti
+      calendar/                měsíční kalendář (3 měsíce dopředu)
+      day/                     detail dne se sloty a návrhy
+      proposal/                detail jídla s hlasy a diskuzí, formulář návrhu
+      settings/                rodina, pozvánky, šablona slotů
+    widgets/common.dart        sdílené stavy (chyba, prázdno, načítání)
+```
+
+Riverpod se používá **bez code-genu** — žádný `build_runner`, providery jsou psané ručně.
+
+### Stav aplikace vs. zadání
+
+Hotové obrazovky podle sekce 4 zadání: 4.1 onboarding, 4.2 týden + měsíční kalendář,
+4.3 detail dne včetně mimořádných slotů, 4.4 detail jídla s hlasováním, diskuzí,
+potvrzením a odemknutím, 4.5 nastavení šablony, 4.7 výběr z galerie při návrhu jídla.
+
+Zbývá (fáze 2 a dál): nákupní seznam s AI (4.6), nahrávání vlastních fotek,
+push notifikace, předplatné.
+
+---
+
 ## Poznámky
 
 - Fotky v předvytvořené galerii jsou zatím **zástupné** (placehold.co). Před vydáním je nahraď
