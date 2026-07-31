@@ -28,14 +28,18 @@ Vše je nainstalované na disku `D:` (mimo `C:`, kvůli místu).
 
 | Nástroj | Umístění |
 |---|---|
-| Flutter SDK | `D:\dev\flutter` |
+| Flutter SDK 3.44.8 | `D:\dev\flutter` |
 | Android SDK | `D:\dev\android-sdk` |
+| Gradle cache | `D:\dev\gradle` |
 | PostgreSQL 17.6 (portable) | `D:\dev\pgsql`, data v `D:\dev\pgdata` |
 | Pub cache | `D:\dev\pub-cache` |
 
-Nastavené uživatelské proměnné prostředí: `ANDROID_HOME`, `ANDROID_SDK_ROOT`, `JAVA_HOME`
-(ukazuje na JDK dodávané s Android Studiem), `PUB_CACHE`, a `PATH` rozšířený o
-`D:\dev\flutter\bin`, `D:\dev\android-sdk\platform-tools` a `cmdline-tools\latest\bin`.
+Nastavené uživatelské proměnné prostředí: `ANDROID_HOME`, `ANDROID_SDK_ROOT`,
+`GRADLE_USER_HOME`, `PUB_CACHE`, `JAVA_HOME` (JDK 21 dodávané s Android Studiem), a `PATH`
+rozšířený o `D:\dev\flutter\bin`, `D:\dev\android-sdk\platform-tools`
+a `cmdline-tools\latest\bin`.
+
+Po restartu počítače je potřeba nastartovat databázi ručně — neběží jako služba.
 
 ### Databáze — start a stop
 
