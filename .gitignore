@@ -18,8 +18,11 @@ app/.dart_tool/
 app/.flutter-plugins
 app/.flutter-plugins-dependencies
 app/build/
+app/android/build/
+app/android/app/build/
 app/android/.gradle/
 app/android/local.properties
+app/.flutter-plugins-dependencies
 app/android/app/debug/
 app/android/app/profile/
 app/android/app/release/
