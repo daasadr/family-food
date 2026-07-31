@@ -7,10 +7,7 @@ plugins {
 android {
     namespace = "cz.familyfood.family_food"
     compileSdk = flutter.compileSdkVersion
-    // Aplikace nemá nativní kód; NDK potřebují jen některé pluginy.
-    // Pinujeme verzi, která je v SDK skutečně nainstalovaná — jinak si ji
-    // AGP stahuje znovu (~2 GB).
-    ndkVersion = "28.0.13004108"
+    ndkVersion = flutter.ndkVersion
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17

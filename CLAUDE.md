@@ -45,16 +45,26 @@ D:\dev\pgsql\bin\pg_ctl.exe -D D:\dev\pgdata -l D:\dev\pgdata\server.log start
   Vypnutí slotu v šabloně neodstraní už vytvořené sloty v kalendáři.
 - `POST` bez těla musí posílat aspoň `{}` — Fastify odmítá prázdné tělo
   s hlavičkou `content-type: application/json`. Řešeno v `ApiClient.post`.
-- NDK je v `app/android/app/build.gradle.kts` pinovaný na `28.0.13004108`.
-  Bez pinu si AGP stahuje ~2 GB verzi navíc, na kterou na `D:` není místo.
+- **Stahování velkých balíků přes Javu** (sdkmanager, AGP) se na tomto stroji
+  zasekává na 0 B, i když je stejná URL přes `Invoke-WebRequest` dostupná. Když
+  build stojí na „Preparing Install …", není to pomalá síť — stáhni balík ručně
+  a rozbal ho na správné místo. Takhle byl nainstalovaný NDK 28.2.13676358
+  (`https://dl.google.com/android/repository/android-ndk-r28c-windows.zip`
+  → `D:\dev\android-sdk\ndk\28.2.13676358`).
+- `path_provider_android` (transitivní závislost) od verze 2.3 táhne balíček
+  `jni` s nativním kódem — proto build vyžaduje NDK, i když vlastní nativní kód
+  nemáme.
+- `flutter_secure_storage` je držený na řadě **9.x**; 10.x přidává další nativní
+  závislosti bez přínosu pro naše použití.
 
 ## Testy
 
 ```powershell
-cd backend; npm test                      # 13 integračních testů (family_food_test)
-cd app; flutter test                      # unit testy
-cd app; flutter test --tags integration   # proti běžícímu backendu na :3000
+cd backend; npm test                    # 13 integračních testů (family_food_test)
+cd app; flutter test                    # 8 unit testů, bez závislosti na backendu
+cd app; flutter test test_integration   # 6 testů proti běžícímu backendu na :3000
 ```
 
-Integrační testy aplikace ověřují, že modely sedí na skutečné odpovědi backendu —
+Integrační testy aplikace leží mimo `test/`, aby je běžné `flutter test` (a CI bez
+backendu) nespouštělo. Ověřují, že modely sedí na skutečné odpovědi backendu —
 spouštěj je po každé změně tvaru API.

@@ -259,8 +259,8 @@ class _ProposalTile extends ConsumerWidget {
                         ?.copyWith(fontWeight: FontWeight.w500),
                   ),
                   Text(
-                    'navrhl${_feminineHint(proposal.proposedBy.name)} '
-                    '${proposal.proposedBy.name}',
+                    // Rod uživatele neznáme, proto obourodá koncovka.
+                    'navrhl/a ${proposal.proposedBy.name}',
                     style: theme.textTheme.bodySmall?.copyWith(
                       color: theme.colorScheme.onSurfaceVariant,
                     ),
@@ -282,9 +282,6 @@ class _ProposalTile extends ConsumerWidget {
       ),
     );
   }
-
-  /// Bez znalosti rodu neuvádíme koncovku — „navrhl/a“.
-  String _feminineHint(String _) => '/a';
 }
 
 class _VoteButton extends ConsumerStatefulWidget {

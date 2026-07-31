@@ -1,6 +1,3 @@
-@Tags(['integration'])
-library;
-
 import 'package:family_food/src/core/api_client.dart';
 import 'package:family_food/src/core/api_service.dart';
 import 'package:family_food/src/core/date_utils.dart';
@@ -11,8 +8,9 @@ import 'package:flutter_test/flutter_test.dart';
 /// Ověřuje, že aplikace rozumí tomu, co backend skutečně posílá — tedy že
 /// modely a fromJson sedí na reálné odpovědi, ne jen na naše představy.
 ///
-/// Vyžaduje běžící backend na localhost:3000. Spustí se jen na vyžádání:
-///   flutter test --tags integration
+/// Leží mimo `test/`, aby běžné `flutter test` (a CI bez backendu) neselhalo.
+/// Vyžaduje běžící backend na localhost:3000, spouští se explicitně:
+///   flutter test test_integration
 void main() {
   const baseUrl = String.fromEnvironment(
     'API_BASE_URL',

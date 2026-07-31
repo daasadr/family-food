@@ -169,7 +169,8 @@ cd app
 flutter pub get
 flutter run                       # vybere připojené zařízení / emulátor
 flutter run -d chrome             # rychlá zkouška v prohlížeči
-flutter test                      # unit testy
+flutter test                      # unit testy (nepotřebují backend)
+flutter test test_integration     # testy proti běžícímu backendu na :3000
 flutter analyze                   # statická analýza
 ```
 
