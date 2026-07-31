@@ -51,11 +51,14 @@ D:\dev\pgsql\bin\pg_ctl.exe -D D:\dev\pgdata -l D:\dev\pgdata\server.log start
   a rozbal ho na správné místo. Takhle byl nainstalovaný NDK 28.2.13676358
   (`https://dl.google.com/android/repository/android-ndk-r28c-windows.zip`
   → `D:\dev\android-sdk\ndk\28.2.13676358`).
-- `path_provider_android` (transitivní závislost) od verze 2.3 táhne balíček
-  `jni` s nativním kódem — proto build vyžaduje NDK, i když vlastní nativní kód
-  nemáme.
+- `path_provider_android` je v `dependency_overrides` držený na **2.2.17**. Od
+  verze 2.3 táhne balíček `jni` s nativním kódem, jehož kompilace spotřebuje
+  ~3 GB navíc — na to tu není místo. Vlastní nativní kód nemáme, starší
+  implementace dělá totéž.
 - `flutter_secure_storage` je držený na řadě **9.x**; 10.x přidává další nativní
   závislosti bez přínosu pro naše použití.
+- Android build zabere ~1,5 GB v `app/build/`. Po `flutter build apk` je dobré
+  `flutter clean`, pokud se místo tenčí.
 
 ## Testy
 

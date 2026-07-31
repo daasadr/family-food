@@ -47,6 +47,12 @@ dependencies:
   # Verzi drží flutter_localizations ze SDK — nezvyšovat ručně.
   intl: ^0.20.2
 
+dependency_overrides:
+  # path_provider_android 2.3+ táhne balíček `jni` s nativním kódem. Kvůli němu
+  # build vyžaduje celý NDK a při kompilaci spotřebuje ~3 GB navíc, i když
+  # aplikace žádný nativní kód nemá. Starší implementace dělá totéž.
+  path_provider_android: 2.2.17
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

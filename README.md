@@ -210,6 +210,9 @@ lib/
 
 Riverpod se používá **bez code-genu** — žádný `build_runner`, providery jsou psané ručně.
 
+Ověřeno: `flutter analyze` bez nálezů, 8 unit testů, 6 integračních testů proti běžícímu
+backendu, sestavení pro web i Android (`app-debug.apk`).
+
 ### Stav aplikace vs. zadání
 
 Hotové obrazovky podle sekce 4 zadání: 4.1 onboarding, 4.2 týden + měsíční kalendář,
