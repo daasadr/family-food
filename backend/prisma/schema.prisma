@@ -1,0 +1,246 @@
+// Rodinný stravovací plánovač — datový model
+// Viz zadani-rodinny-jidelnicek-claude-code.md, sekce 3.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum SubscriptionTier {
+  free
+  premium
+}
+
+enum FamilyRole {
+  owner
+  member
+}
+
+enum InviteStatus {
+  pending
+  accepted
+  expired
+  revoked
+}
+
+enum SlotType {
+  breakfast
+  lunch
+  dinner
+  snack1
+  snack2
+  custom
+}
+
+enum ProposalStatus {
+  proposed
+  confirmed
+  locked
+}
+
+model Family {
+  id               String           @id @default(uuid())
+  name             String
+  subscriptionTier SubscriptionTier @default(free)
+  /// Dny v týdnu, kdy rodina obvykle nakupuje (0 = neděle … 6 = sobota).
+  /// Vstup pro AI generování nákupního seznamu (fáze 2).
+  shoppingDays     Int[]            @default([])
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  users         User[]
+  invites       Invite[]
+  mealTemplate  MealTemplate?
+  mealSlots     MealSlot[]
+  shoppingLists ShoppingList[]
+  galleryItems  MealGalleryItem[]
+}
+
+model User {
+  id           String     @id @default(uuid())
+  email        String     @unique
+  passwordHash String
+  name         String
+  avatarUrl    String?
+  familyId     String?
+  role         FamilyRole @default(member)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  family        Family?        @relation(fields: [familyId], references: [id], onDelete: SetNull)
+  refreshTokens RefreshToken[]
+  proposals     MealProposal[]
+  votes         Vote[]
+  comments      Comment[]
+
+  @@index([familyId])
+}
+
+/// Rotující refresh tokeny — ukládá se jen hash, nikdy samotný token.
+model RefreshToken {
+  id        String    @id @default(uuid())
+  userId    String
+  tokenHash String    @unique
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model Invite {
+  id        String       @id @default(uuid())
+  familyId  String
+  /// Hash pozvánkového tokenu; plaintext se zobrazí jen jednou při vytvoření.
+  tokenHash String       @unique
+  email     String?
+  expiresAt DateTime
+  status    InviteStatus @default(pending)
+  createdAt DateTime     @default(now())
+
+  family Family @relation(fields: [familyId], references: [id], onDelete: Cascade)
+
+  @@index([familyId])
+}
+
+/// Šablona slotů rodiny — jedna na rodinu, sloty jako podřízené záznamy.
+model MealTemplate {
+  id        String   @id @default(uuid())
+  familyId  String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  family Family                 @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  slots  MealTemplateSlotItem[]
+}
+
+model MealTemplateSlotItem {
+  id          String   @id @default(uuid())
+  templateId  String
+  slotType    SlotType
+  enabled     Boolean  @default(true)
+  customLabel String?
+  /// Pořadí zobrazení v rámci dne.
+  sortOrder   Int      @default(0)
+
+  template MealTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+
+  @@unique([templateId, slotType, customLabel])
+  @@index([templateId])
+}
+
+/// Konkrétní slot v konkrétní den. Generuje se ze šablony při otevření dne,
+/// nebo ad-hoc (isCustomSlot = true, např. slot na oslavu).
+model MealSlot {
+  id           String   @id @default(uuid())
+  familyId     String
+  /// Datum dne (půlnoc UTC) — čas se nepoužívá.
+  date         DateTime @db.Date
+  slotType     SlotType
+  customLabel  String?
+  isCustomSlot Boolean  @default(false)
+  sortOrder    Int      @default(0)
+  createdAt    DateTime @default(now())
+
+  family    Family         @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  proposals MealProposal[]
+
+  @@unique([familyId, date, slotType, customLabel])
+  @@index([familyId, date])
+}
+
+model MealProposal {
+  id               String         @id @default(uuid())
+  mealSlotId       String
+  proposedByUserId String
+  title            String
+  description      String?
+  photoUrl         String?
+  status           ProposalStatus @default(proposed)
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  mealSlot       MealSlot  @relation(fields: [mealSlotId], references: [id], onDelete: Cascade)
+  proposedByUser User      @relation(fields: [proposedByUserId], references: [id], onDelete: Cascade)
+  votes          Vote[]
+  comments       Comment[]
+
+  @@index([mealSlotId])
+  @@index([proposedByUserId])
+}
+
+model Vote {
+  id         String   @id @default(uuid())
+  proposalId String
+  userId     String
+  createdAt  DateTime @default(now())
+
+  proposal MealProposal @relation(fields: [proposalId], references: [id], onDelete: Cascade)
+  user     User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([proposalId, userId])
+  @@index([proposalId])
+}
+
+model Comment {
+  id         String   @id @default(uuid())
+  proposalId String
+  userId     String
+  text       String
+  createdAt  DateTime @default(now())
+
+  proposal MealProposal @relation(fields: [proposalId], references: [id], onDelete: Cascade)
+  user     User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([proposalId])
+}
+
+model ShoppingList {
+  id            String   @id @default(uuid())
+  familyId      String
+  rangeStart    DateTime @db.Date
+  rangeEnd      DateTime @db.Date
+  generatedAt   DateTime @default(now())
+  generatedByAI Boolean  @default(false)
+
+  family Family             @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  items  ShoppingListItem[]
+
+  @@index([familyId])
+}
+
+model ShoppingListItem {
+  id             String    @id @default(uuid())
+  shoppingListId String
+  name           String
+  category       String?
+  quantity       String?
+  buyByDate      DateTime? @db.Date
+  note           String?
+  isChecked      Boolean   @default(false)
+  createdAt      DateTime  @default(now())
+
+  shoppingList ShoppingList @relation(fields: [shoppingListId], references: [id], onDelete: Cascade)
+
+  @@index([shoppingListId])
+}
+
+/// familyId = null → globální předvytvořená galerie běžných jídel.
+model MealGalleryItem {
+  id        String   @id @default(uuid())
+  familyId  String?
+  title     String
+  photoUrl  String
+  category  String?
+  createdAt DateTime @default(now())
+
+  family Family? @relation(fields: [familyId], references: [id], onDelete: Cascade)
+
+  @@index([familyId])
+}

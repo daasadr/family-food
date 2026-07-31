@@ -1,0 +1,167 @@
+# Family Food — rodinný stravovací plánovač
+
+Kolaborativní plánování jídelníčku pro celou rodinu: návrhy jídel na kalendáři, hlasování,
+diskuze, potvrzení a (ve fázi 2) AI generovaný nákupní seznam.
+
+Kompletní zadání: [zadani-rodinny-jidelnicek-claude-code.md](zadani-rodinny-jidelnicek-claude-code.md)
+
+## Struktura repozitáře
+
+```
+backend/   Node.js 22 + Fastify 5 + TypeScript + Prisma + PostgreSQL — REST API
+app/       Flutter (Dart) + Riverpod — mobilní aplikace (Android + iOS)
+```
+
+## Stav vývoje
+
+| Fáze | Obsah | Stav |
+|---|---|---|
+| 1 (MVP) | registrace, rodina, pozvánky, kalendář, návrhy, hlasy, komentáře, galerie | backend hotový, aplikace se staví |
+| 2 | AI nákupní seznam, push notifikace, nastavení šablony | šablona hotová v API, zbytek plánován |
+| 3 | předplatné (RevenueCat), Open Food Facts, web | plánováno |
+
+---
+
+## Lokální vývojové prostředí
+
+Vše je nainstalované na disku `D:` (mimo `C:`, kvůli místu).
+
+| Nástroj | Umístění |
+|---|---|
+| Flutter SDK | `D:\dev\flutter` |
+| Android SDK | `D:\dev\android-sdk` |
+| PostgreSQL 17.6 (portable) | `D:\dev\pgsql`, data v `D:\dev\pgdata` |
+| Pub cache | `D:\dev\pub-cache` |
+
+Nastavené uživatelské proměnné prostředí: `ANDROID_HOME`, `ANDROID_SDK_ROOT`, `JAVA_HOME`
+(ukazuje na JDK dodávané s Android Studiem), `PUB_CACHE`, a `PATH` rozšířený o
+`D:\dev\flutter\bin`, `D:\dev\android-sdk\platform-tools` a `cmdline-tools\latest\bin`.
+
+### Databáze — start a stop
+
+```powershell
+# start
+D:\dev\pgsql\bin\pg_ctl.exe -D D:\dev\pgdata -l D:\dev\pgdata\server.log start
+
+# stav
+D:\dev\pgsql\bin\pg_isready.exe -p 5432
+
+# stop
+D:\dev\pgsql\bin\pg_ctl.exe -D D:\dev\pgdata stop
+```
+
+Databáze a role vytvořené pro projekt:
+
+| Databáze | Účel |
+|---|---|
+| `family_food` | vývoj |
+| `family_food_test` | automatické testy |
+
+Role `familyfood` / heslo `familyfood` (jen lokálně — v produkci nahradit).
+
+---
+
+## Backend
+
+```powershell
+cd backend
+npm install
+copy .env.example .env      # a doplň hodnoty
+npx prisma migrate dev      # vytvoří schéma
+npm run seed                # naplní globální galerii jídel
+npm run dev                 # http://localhost:3000
+```
+
+Skripty:
+
+| Příkaz | Co dělá |
+|---|---|
+| `npm run dev` | vývojový server s hot reloadem (tsx watch) |
+| `npm run build` / `npm start` | produkční build a spuštění |
+| `npm run typecheck` | kontrola typů bez buildu |
+| `npm test` | integrační testy proti `family_food_test` |
+| `npm run prisma:studio` | GUI prohlížeč databáze |
+
+### Přehled API
+
+Base URL: `http://localhost:3000/api/v1`. Autentizace hlavičkou `Authorization: Bearer <accessToken>`.
+
+**Auth** — `/auth`
+
+| Metoda | Cesta | Popis |
+|---|---|---|
+| POST | `/register` | registrace, vrací uživatele + tokeny |
+| POST | `/login` | přihlášení |
+| POST | `/refresh` | obnovení tokenů (refresh token se rotuje) |
+| POST | `/logout` | zneplatnění refresh tokenu |
+| GET | `/me` | aktuální uživatel |
+
+**Rodiny a pozvánky** — `/families`
+
+| Metoda | Cesta | Popis |
+|---|---|---|
+| POST | `/` | založení rodiny (zakladatel = owner) |
+| GET | `/me` | detail rodiny včetně členů |
+| PATCH | `/me` | název, dny nákupů (jen owner) |
+| POST | `/me/leave` | odchod z rodiny |
+| POST | `/me/transfer-ownership` | předání vlastnictví |
+| POST | `/me/invites` | vytvoření pozvánky — kód se vrací jen jednou |
+| GET | `/me/invites` | seznam pozvánek |
+| DELETE | `/me/invites/:id` | zrušení pozvánky |
+| POST | `/invites/accept` | přijetí pozvánky kódem |
+
+Endpointy, které mění členství v rodině, vracejí i **nové tokeny** — access token nese
+`familyId`, takže po vstupu do rodiny je potřeba ho vyměnit.
+
+**Plánovač** — `/planner`
+
+| Metoda | Cesta | Popis |
+|---|---|---|
+| GET | `/template` | šablona slotů rodiny |
+| PUT | `/template` | přepsání slotů (zapnutí/vypnutí, vlastní názvy) |
+| GET | `/week?start=YYYY-MM-DD` | týdenní přehled s počty pro indikátory |
+| GET | `/days/:date` | detail dne — sloty se generují ze šablony při otevření |
+| POST | `/days/:date/slots` | mimořádný slot mimo šablonu (oslava apod.) |
+| DELETE | `/slots/:slotId` | smazání mimořádného slotu |
+| POST | `/slots/:slotId/proposals` | návrh jídla |
+| GET/PATCH/DELETE | `/proposals/:id` | detail, úprava, smazání návrhu |
+| POST | `/proposals/:id/confirm` | potvrzení návrhu → uzamkne slot |
+| POST | `/proposals/:id/unlock` | odemknutí zpět k úpravě |
+| POST/DELETE | `/proposals/:id/vote` | hlasování |
+| GET/POST | `/proposals/:id/comments` | diskuzní vlákno |
+| DELETE | `/comments/:id` | smazání vlastního komentáře |
+
+**Galerie** — `/gallery`
+
+| Metoda | Cesta | Popis |
+|---|---|---|
+| GET | `/?scope=all\|global\|family` | globální i rodinná galerie, filtr `category`, `search` |
+| POST | `/` | přidání do rodinné galerie |
+| DELETE | `/:id` | smazání z rodinné galerie (globální je jen ke čtení) |
+
+### Doménová pravidla vynucovaná backendem
+
+- Plánovat lze nejvýše `MAX_PLANNING_MONTHS_AHEAD` (výchozí 3) měsíce dopředu.
+- Návrh se stavem `confirmed`/`locked` nelze editovat ani smazat, dokud ho někdo neodemkne.
+- Ve slotu smí být potvrzené nejvýše jedno jídlo; dokud je potvrzené, nelze přidat další návrh.
+- Navrhovat, hlasovat, komentovat i potvrzovat smí kterýkoli člen rodiny (owner i member).
+- Upravit/smazat návrh smí jen jeho autor; komentář jen jeho autor.
+- Pozvánky i refresh tokeny se v databázi ukládají jen jako hash.
+
+### Chybové odpovědi
+
+```json
+{ "error": "SLOT_LOCKED", "message": "V tomto slotu je už potvrzené jídlo…" }
+```
+
+Klient rozlišuje případy podle stabilního `error` kódu, ne podle textu zprávy.
+
+---
+
+## Poznámky
+
+- Fotky v předvytvořené galerii jsou zatím **zástupné** (placehold.co). Před vydáním je nahraď
+  vlastními nebo licencovanými obrázky na Cloudflare R2 / MinIO.
+- iOS build vyžaduje macOS — plánuje se přes Codemagic nebo GitHub Actions s macOS runnerem.
+- Před nasazením do produkce vyměň `JWT_ACCESS_SECRET` a `JWT_REFRESH_SECRET` za dlouhé
+  náhodné hodnoty a nastav skutečné heslo databáze.
