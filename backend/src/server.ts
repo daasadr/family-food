@@ -15,10 +15,22 @@ import authRoutes from './modules/auth/routes.js';
 import familyRoutes from './modules/families/routes.js';
 import galleryRoutes from './modules/gallery/routes.js';
 import plannerRoutes from './modules/planner/routes.js';
+import type { ShoppingListGenerator } from './modules/shopping/ai.js';
+import shoppingRoutes from './modules/shopping/routes.js';
 import authPlugin from './plugins/auth.js';
 import prismaPlugin from './plugins/prisma.js';
 
-export async function buildServer(): Promise<FastifyInstance> {
+export interface BuildServerOptions {
+  /**
+   * Přebije generátor nákupního seznamu. Testy sem podstrčí deterministickou
+   * implementaci, aby nepotřebovaly klíč k AI ani síť.
+   */
+  shoppingListGenerator?: ShoppingListGenerator;
+}
+
+export async function buildServer(
+  options: BuildServerOptions = {},
+): Promise<FastifyInstance> {
   const app = Fastify({
     logger: { level: env.NODE_ENV === 'test' ? 'silent' : 'info' },
   }).withTypeProvider<ZodTypeProvider>();
@@ -85,6 +97,10 @@ export async function buildServer(): Promise<FastifyInstance> {
   await app.register(familyRoutes, { prefix: '/api/v1/families' });
   await app.register(plannerRoutes, { prefix: '/api/v1/planner' });
   await app.register(galleryRoutes, { prefix: '/api/v1/gallery' });
+  await app.register(shoppingRoutes, {
+    prefix: '/api/v1/shopping-lists',
+    generator: options.shoppingListGenerator,
+  });
 
   return app;
 }

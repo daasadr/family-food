@@ -83,6 +83,76 @@ void main() {
       expect(slotTypeLabel(SlotType.breakfast), 'Snídaně');
     });
   });
+
+  group('nákupní seznam', () {
+    ShoppingList listWith(List<Map<String, dynamic>> items) =>
+        ShoppingList.fromJson({
+          'id': 'list-1',
+          'rangeStart': '2026-08-03',
+          'rangeEnd': '2026-08-09',
+          'generatedAt': '2026-08-01T10:00:00.000Z',
+          'generatedByAI': true,
+          'items': items,
+        });
+
+    Map<String, dynamic> item({
+      required String id,
+      required String name,
+      String? buyByDate,
+      bool isChecked = false,
+    }) =>
+        {
+          'id': id,
+          'name': name,
+          'isChecked': isChecked,
+          'category': 'zelenina',
+          'quantity': '1 kg',
+          'buyByDate': buyByDate,
+          'note': null,
+        };
+
+    test('seskupí položky podle dne nákupu', () {
+      final list = listWith([
+        item(id: 'a', name: 'treska', buyByDate: '2026-08-06'),
+        item(id: 'b', name: 'brambory', buyByDate: '2026-08-03'),
+        item(id: 'c', name: 'citron', buyByDate: '2026-08-06'),
+      ]);
+
+      final grouped = list.byBuyDate;
+      expect(grouped.keys.toSet(), {'2026-08-06', '2026-08-03'});
+      expect(grouped['2026-08-06'], hasLength(2));
+      expect(grouped['2026-08-03'], hasLength(1));
+    });
+
+    test('položky bez data skončí pod klíčem null', () {
+      final list = listWith([
+        item(id: 'a', name: 'mouka'),
+        item(id: 'b', name: 'treska', buyByDate: '2026-08-06'),
+      ]);
+
+      expect(list.byBuyDate[null], hasLength(1));
+      expect(list.byBuyDate[null]!.first.name, 'mouka');
+    });
+
+    test('počítá odškrtnuté a pozná dokončený seznam', () {
+      final partial = listWith([
+        item(id: 'a', name: 'treska', isChecked: true),
+        item(id: 'b', name: 'brambory'),
+      ]);
+      expect(partial.checkedCount, 1);
+      expect(partial.isComplete, false);
+
+      final done = listWith([
+        item(id: 'a', name: 'treska', isChecked: true),
+        item(id: 'b', name: 'brambory', isChecked: true),
+      ]);
+      expect(done.isComplete, true);
+    });
+
+    test('prázdný seznam není dokončený', () {
+      expect(listWith([]).isComplete, false);
+    });
+  });
 }
 
 Map<String, dynamic> _proposalJson({

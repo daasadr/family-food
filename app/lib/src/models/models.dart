@@ -386,6 +386,120 @@ class MealComment {
       );
 }
 
+class ShoppingItem {
+  const ShoppingItem({
+    required this.id,
+    required this.name,
+    required this.isChecked,
+    this.category,
+    this.quantity,
+    this.buyByDate,
+    this.note,
+  });
+
+  final String id;
+  final String name;
+  final bool isChecked;
+  final String? category;
+  final String? quantity;
+
+  /// Doporučené datum nákupu (YYYY-MM-DD), nebo null když ho AI neurčila.
+  final String? buyByDate;
+  final String? note;
+
+  ShoppingItem copyWith({bool? isChecked}) => ShoppingItem(
+        id: id,
+        name: name,
+        isChecked: isChecked ?? this.isChecked,
+        category: category,
+        quantity: quantity,
+        buyByDate: buyByDate,
+        note: note,
+      );
+
+  factory ShoppingItem.fromJson(Map<String, dynamic> json) => ShoppingItem(
+        id: json['id'] as String,
+        name: json['name'] as String,
+        isChecked: json['isChecked'] as bool,
+        category: json['category'] as String?,
+        quantity: json['quantity'] as String?,
+        buyByDate: json['buyByDate'] as String?,
+        note: json['note'] as String?,
+      );
+}
+
+class ShoppingList {
+  const ShoppingList({
+    required this.id,
+    required this.rangeStart,
+    required this.rangeEnd,
+    required this.generatedAt,
+    required this.generatedByAI,
+    required this.items,
+  });
+
+  final String id;
+  final String rangeStart;
+  final String rangeEnd;
+  final DateTime generatedAt;
+  final bool generatedByAI;
+  final List<ShoppingItem> items;
+
+  int get checkedCount => items.where((i) => i.isChecked).length;
+
+  bool get isComplete => items.isNotEmpty && checkedCount == items.length;
+
+  /// Položky seskupené podle data nákupu — hlavní přínos AI seznamu.
+  Map<String?, List<ShoppingItem>> get byBuyDate {
+    final grouped = <String?, List<ShoppingItem>>{};
+    for (final item in items) {
+      grouped.putIfAbsent(item.buyByDate, () => []).add(item);
+    }
+    return grouped;
+  }
+
+  factory ShoppingList.fromJson(Map<String, dynamic> json) => ShoppingList(
+        id: json['id'] as String,
+        rangeStart: json['rangeStart'] as String,
+        rangeEnd: json['rangeEnd'] as String,
+        generatedAt: DateTime.parse(json['generatedAt'] as String),
+        generatedByAI: json['generatedByAI'] as bool,
+        items: (json['items'] as List<dynamic>)
+            .map((e) => ShoppingItem.fromJson(e as Map<String, dynamic>))
+            .toList(),
+      );
+}
+
+class ShoppingListSummary {
+  const ShoppingListSummary({
+    required this.id,
+    required this.rangeStart,
+    required this.rangeEnd,
+    required this.generatedAt,
+    required this.itemCount,
+    required this.checkedCount,
+  });
+
+  final String id;
+  final String rangeStart;
+  final String rangeEnd;
+  final DateTime generatedAt;
+  final int itemCount;
+  final int checkedCount;
+
+  bool get isComplete => itemCount > 0 && checkedCount == itemCount;
+
+  factory ShoppingListSummary.fromJson(Map<String, dynamic> json) =>
+      ShoppingListSummary(
+        id: json['id'] as String,
+        rangeStart: json['rangeStart'] as String,
+        rangeEnd: json['rangeEnd'] as String,
+        generatedAt: DateTime.parse(json['generatedAt'] as String),
+        itemCount: json['itemCount'] as int,
+        checkedCount: json['checkedCount'] as int,
+      );
+}
+
 class GalleryItem {
   const GalleryItem({
     required this.id,

@@ -141,6 +141,36 @@ void main() {
     );
   });
 
+  test('nákupní seznam bez API klíče selže srozumitelně', () async {
+    await signUpWithFamily('Rodina s nákupem');
+    final date = futureDate();
+
+    final day = await api.getDay(date);
+    final lunch = day.slots.firstWhere((s) => s.slotType == SlotType.lunch);
+    await api.createProposal(slotId: lunch.id, title: 'Pečená treska');
+
+    // Bez ANTHROPIC_API_KEY musí backend vrátit jasný kód, ne pád.
+    // S nastaveným klíčem projde generování a vrátí seznam položek.
+    try {
+      final list = await api.generateShoppingList(
+        rangeStart: date,
+        rangeEnd: date,
+        includeProposed: true,
+      );
+      expect(list.items, isNotEmpty);
+      expect(list.generatedByAI, isTrue);
+    } on ApiException catch (e) {
+      expect(e.code, 'AI_NOT_CONFIGURED');
+    }
+  });
+
+  test('přehled nákupních seznamů je dostupný', () async {
+    await signUpWithFamily('Rodina se seznamy');
+
+    final lists = await api.shoppingLists();
+    expect(lists, isEmpty);
+  });
+
   test('globální galerie je naplněná a dá se prohledávat', () async {
     await signUpWithFamily('Rodina s galerií');
 

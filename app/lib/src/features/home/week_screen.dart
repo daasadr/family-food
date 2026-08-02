@@ -42,6 +42,11 @@ class WeekScreen extends ConsumerWidget {
         ),
         actions: [
           IconButton(
+            tooltip: 'Nákupní seznam',
+            icon: const Icon(Icons.shopping_basket_outlined),
+            onPressed: () => context.push('/shopping'),
+          ),
+          IconButton(
             tooltip: 'Měsíční kalendář',
             icon: const Icon(Icons.calendar_month_outlined),
             onPressed: () => context.push('/calendar'),

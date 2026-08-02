@@ -214,3 +214,13 @@ final commentsProvider = FutureProvider.family<List<MealComment>, String>(
 final galleryProvider = FutureProvider.family<List<GalleryItem>, String>(
   (ref, search) => ref.watch(apiServiceProvider).gallery(search: search),
 );
+
+// --- Nákupní seznam -----------------------------------------------------
+
+final shoppingListsProvider = FutureProvider<List<ShoppingListSummary>>(
+  (ref) => ref.watch(apiServiceProvider).shoppingLists(),
+);
+
+final shoppingListProvider = FutureProvider.family<ShoppingList, String>(
+  (ref, id) => ref.watch(apiServiceProvider).shoppingList(id),
+);

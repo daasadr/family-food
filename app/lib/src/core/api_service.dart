@@ -259,6 +259,78 @@ class ApiService {
   Future<void> deleteComment(String commentId) =>
       _client.delete<void>('/planner/comments/$commentId');
 
+  // --- Nákupní seznam ---------------------------------------------------
+
+  Future<ShoppingList> generateShoppingList({
+    required String rangeStart,
+    required String rangeEnd,
+    bool includeProposed = false,
+  }) async {
+    final data = await _client.post<Map<String, dynamic>>(
+      '/shopping-lists/generate',
+      body: {
+        'rangeStart': rangeStart,
+        'rangeEnd': rangeEnd,
+        'includeProposed': includeProposed,
+      },
+    );
+    return ShoppingList.fromJson(data);
+  }
+
+  Future<List<ShoppingListSummary>> shoppingLists() async {
+    final data = await _client.get<List<dynamic>>('/shopping-lists');
+    return data
+        .map((e) => ShoppingListSummary.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  Future<ShoppingList> shoppingList(String id) async {
+    final data = await _client.get<Map<String, dynamic>>('/shopping-lists/$id');
+    return ShoppingList.fromJson(data);
+  }
+
+  Future<void> deleteShoppingList(String id) =>
+      _client.delete<void>('/shopping-lists/$id');
+
+  Future<ShoppingItem> addShoppingItem({
+    required String listId,
+    required String name,
+    String? category,
+    String? quantity,
+    String? buyByDate,
+  }) async {
+    final data = await _client.post<Map<String, dynamic>>(
+      '/shopping-lists/$listId/items',
+      body: {
+        'name': name,
+        if (category != null && category.isNotEmpty) 'category': category,
+        if (quantity != null && quantity.isNotEmpty) 'quantity': quantity,
+        if (buyByDate != null) 'buyByDate': buyByDate,
+      },
+    );
+    return ShoppingItem.fromJson(data);
+  }
+
+  Future<ShoppingItem> updateShoppingItem({
+    required String itemId,
+    String? name,
+    String? quantity,
+    bool? isChecked,
+  }) async {
+    final data = await _client.patch<Map<String, dynamic>>(
+      '/shopping-lists/items/$itemId',
+      body: {
+        if (name != null) 'name': name,
+        if (quantity != null) 'quantity': quantity,
+        if (isChecked != null) 'isChecked': isChecked,
+      },
+    );
+    return ShoppingItem.fromJson(data);
+  }
+
+  Future<void> deleteShoppingItem(String itemId) =>
+      _client.delete<void>('/shopping-lists/items/$itemId');
+
   // --- Galerie ----------------------------------------------------------
 
   Future<List<GalleryItem>> gallery({String scope = 'all', String? search}) async {

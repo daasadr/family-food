@@ -16,8 +16,9 @@ app/       Flutter (Dart) + Riverpod — mobilní aplikace (Android + iOS)
 
 | Fáze | Obsah | Stav |
 |---|---|---|
-| 1 (MVP) | registrace, rodina, pozvánky, kalendář, návrhy, hlasy, komentáře, galerie | backend hotový, aplikace se staví |
-| 2 | AI nákupní seznam, push notifikace, nastavení šablony | šablona hotová v API, zbytek plánován |
+| 1 (MVP) | registrace, rodina, pozvánky, kalendář, návrhy, hlasy, komentáře, galerie | hotovo |
+| 2 | AI nákupní seznam, nastavení šablony | hotovo |
+| 2 | push notifikace | plánováno |
 | 3 | předplatné (RevenueCat), Open Food Facts, web | plánováno |
 
 ---
@@ -134,6 +135,19 @@ Endpointy, které mění členství v rodině, vracejí i **nové tokeny** — a
 | POST/DELETE | `/proposals/:id/vote` | hlasování |
 | GET/POST | `/proposals/:id/comments` | diskuzní vlákno |
 | DELETE | `/comments/:id` | smazání vlastního komentáře |
+
+**Nákupní seznam** — `/shopping-lists`
+
+| Metoda | Cesta | Popis |
+|---|---|---|
+| POST | `/generate` | AI sestaví seznam z jídel v rozmezí (max 10× za hodinu) |
+| GET | `/` | přehled seznamů s počtem odškrtnutých položek |
+| GET/DELETE | `/:id` | detail a smazání seznamu |
+| POST | `/:id/items` | přidání vlastní položky |
+| PATCH/DELETE | `/items/:itemId` | odškrtnutí, úprava, smazání položky |
+
+Generování vyžaduje `ANTHROPIC_API_KEY`. Bez klíče vrací `409 AI_NOT_CONFIGURED` —
+zbytek API funguje normálně.
 
 **Galerie** — `/gallery`
 

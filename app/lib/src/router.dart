@@ -10,6 +10,8 @@ import 'features/onboarding/family_setup_screen.dart';
 import 'features/proposal/proposal_screen.dart';
 import 'features/proposal/propose_meal_screen.dart';
 import 'features/settings/settings_screen.dart';
+import 'features/shopping/shopping_list_screen.dart';
+import 'features/shopping/shopping_lists_screen.dart';
 import 'providers/providers.dart';
 
 /// Přesměrování řídí stav autentizace:
@@ -48,6 +50,17 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/setup', builder: (_, __) => const FamilySetupScreen()),
       GoRoute(path: '/', builder: (_, __) => const WeekScreen()),
       GoRoute(path: '/calendar', builder: (_, __) => const CalendarScreen()),
+      GoRoute(
+        path: '/shopping',
+        builder: (_, __) => const ShoppingListsScreen(),
+        routes: [
+          GoRoute(
+            path: ':listId',
+            builder: (_, state) =>
+                ShoppingListScreen(listId: state.pathParameters['listId']!),
+          ),
+        ],
+      ),
       GoRoute(
         path: '/day/:date',
         builder: (_, state) =>
