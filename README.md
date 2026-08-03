@@ -136,6 +136,20 @@ Endpointy, které mění členství v rodině, vracejí i **nové tokeny** — a
 | GET/POST | `/proposals/:id/comments` | diskuzní vlákno |
 | DELETE | `/comments/:id` | smazání vlastního komentáře |
 
+## Nasazení
+
+Produkce běží na sdíleném serveru, kde reverse proxy a HTTPS spravuje
+samostatné serverové okno. Postup, porty a text k předání jsou
+v [deploy/README.md](deploy/README.md).
+
+Stručně: `docker compose` spustí PostgreSQL a API; API poslouchá na
+`127.0.0.1:3004` a servíruje jak REST API (`/api/v1/…`), tak úvodní stránku
+a zásady ochrany osobních údajů (`/privacy`). Databáze se na hosta
+nepublikuje.
+
+Release build aplikace míří na `https://api.familyfood-ai.eu/api/v1`
+i bez `--dart-define` — aby se omylem nevydala verze ukazující na localhost.
+
 **Nákupní seznam** — `/shopping-lists`
 
 | Metoda | Cesta | Popis |

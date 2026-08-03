@@ -44,3 +44,7 @@ Thumbs.db
 # Lokální data
 /data/
 /tmp/
+
+# Nasazení — tajné hodnoty a zálohy zůstávají jen na serveru
+deploy/.env
+deploy/backups/

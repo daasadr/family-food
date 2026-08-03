@@ -91,6 +91,22 @@ const authRoutes: FastifyPluginAsyncZod = async (app) => {
     },
   );
 
+  app.delete(
+    '/me',
+    {
+      preHandler: app.authenticate,
+      schema: {
+        tags: ['auth'],
+        description: 'Nevratné smazání účtu i souvisejících dat (GDPR).',
+        response: { 204: z.null() },
+      },
+    },
+    async (req, reply) => {
+      await service.deleteAccount(req.auth.userId);
+      return reply.code(204).send(null);
+    },
+  );
+
   app.get(
     '/me',
     {

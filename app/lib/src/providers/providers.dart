@@ -7,15 +7,23 @@ import '../core/date_utils.dart';
 import '../core/token_storage.dart';
 import '../models/models.dart';
 
-/// Adresa API. Emulátor Androidu vidí hostitele jako 10.0.2.2.
-/// Přepiš přes `flutter run --dart-define=API_BASE_URL=https://…`.
-const String _defaultBaseUrl = String.fromEnvironment(
+/// Produkční API. Release build sem míří i bez `--dart-define`, aby se
+/// omylem nevydala verze ukazující na localhost.
+const String productionBaseUrl = 'https://api.familyfood-ai.eu/api/v1';
+
+/// Přepsání adresy pro vývoj i pro testovací prostředí:
+/// `flutter run --dart-define=API_BASE_URL=https://…`
+const String _overrideBaseUrl = String.fromEnvironment(
   'API_BASE_URL',
   defaultValue: '',
 );
 
 String resolveBaseUrl() {
-  if (_defaultBaseUrl.isNotEmpty) return _defaultBaseUrl;
+  if (_overrideBaseUrl.isNotEmpty) return _overrideBaseUrl;
+  if (kReleaseMode) return productionBaseUrl;
+
+  // Ladicí běh míří na backend na vývojářském stroji.
+  // Emulátor Androidu vidí hostitele jako 10.0.2.2.
   if (defaultTargetPlatform == TargetPlatform.android && !kIsWeb) {
     return 'http://10.0.2.2:3000/api/v1';
   }

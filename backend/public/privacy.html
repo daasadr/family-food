@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="cs">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Zásady ochrany osobních údajů — Family Food</title>
+<style>
+  :root { color-scheme: light dark; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font: 16px/1.7 system-ui, -apple-system, "Segoe UI", sans-serif;
+    background: #f6f4ef;
+    color: #2c2a26;
+  }
+  main { max-width: 44rem; margin: 0 auto; padding: 3rem 1.5rem 5rem; }
+  h1 { font-size: 1.9rem; margin: 0 0 .25rem; }
+  h2 { font-size: 1.2rem; margin: 2.5rem 0 .6rem; }
+  .updated { color: #6b6862; font-size: .9rem; margin: 0 0 2rem; }
+  .todo {
+    background: #fdf3d8; border-left: 4px solid #d9a441;
+    padding: 1rem 1.2rem; margin: 1.5rem 0; border-radius: 0 6px 6px 0;
+  }
+  table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+  th, td { text-align: left; padding: .55rem .6rem; border-bottom: 1px solid #ddd8cf; vertical-align: top; }
+  th { font-weight: 600; }
+  a { color: #7a5c2e; }
+  @media (prefers-color-scheme: dark) {
+    body { background: #1c1b19; color: #e8e4dc; }
+    .updated { color: #948e86; }
+    .todo { background: #3a3320; border-color: #d9a441; }
+    th, td { border-color: #35322d; }
+    a { color: #d9b276; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <h1>Zásady ochrany osobních údajů</h1>
+  <p class="updated">Aplikace Family Food · naposledy upraveno: <!-- DATUM -->2026-08-02</p>
+
+  <div class="todo">
+    <strong>Před vydáním do obchodů doplňte:</strong> jméno a sídlo správce údajů,
+    kontaktní e-mail a IČO. Text níže je připravený podklad, ne právní posudek —
+    nechte si ho projít někým, kdo GDPR dělá.
+  </div>
+
+  <h2>Kdo údaje zpracovává</h2>
+  <p>
+    Správcem osobních údajů je <!-- DOPLNIT -->[jméno / firma], se sídlem
+    <!-- DOPLNIT -->[adresa], kontakt: <!-- DOPLNIT -->[e-mail].
+  </p>
+
+  <h2>Jaké údaje zpracováváme</h2>
+  <table>
+    <tr><th>Údaj</th><th>Proč</th></tr>
+    <tr><td>E-mailová adresa</td><td>přihlášení k účtu a pozvánky do rodiny</td></tr>
+    <tr><td>Jméno</td><td>zobrazení u návrhů jídel, hlasů a komentářů</td></tr>
+    <tr><td>Heslo</td><td>ukládá se pouze jako nevratný otisk (argon2), nikdy v čitelné podobě</td></tr>
+    <tr><td>Obsah, který vytvoříte</td><td>názvy jídel, popisy, komentáře, hlasy, nákupní seznamy</td></tr>
+    <tr><td>Fotky jídel</td><td>pokud je nahrajete do rodinné galerie</td></tr>
+  </table>
+
+  <h2>Právní základ</h2>
+  <p>
+    Údaje zpracováváme na základě plnění smlouvy (poskytování služby, na kterou
+    jste se zaregistrovali) podle čl. 6 odst. 1 písm. b) GDPR.
+  </p>
+
+  <h2>Komu se údaje dostanou</h2>
+  <ul>
+    <li><strong>Ostatním členům vaší rodiny</strong> v aplikaci — vidí vaše jméno,
+      návrhy jídel, hlasy a komentáře.</li>
+    <li><strong>Anthropic PBC</strong> — při generování nákupního seznamu se odesílají
+      názvy a popisy naplánovaných jídel. Neodesílají se e-maily, jména ani fotky.</li>
+    <li><strong>Poskytovateli serveru</strong>, na kterém aplikace běží.</li>
+  </ul>
+  <p>Údaje neprodáváme a nepoužíváme k reklamnímu cílení.</p>
+
+  <h2>Jak dlouho je uchováváme</h2>
+  <p>
+    Po dobu, kdy máte účet. Po jeho smazání se váš účet a s ním spojené osobní
+    údaje odstraní. Zálohy databáze se přepisují nejpozději do 30 dnů.
+  </p>
+
+  <h2>Vaše práva</h2>
+  <p>
+    Máte právo na přístup ke svým údajům, jejich opravu, výmaz, omezení
+    zpracování a přenositelnost. Účet můžete kdykoli smazat přímo v aplikaci
+    (Nastavení → Smazat účet), nebo napsat na kontaktní e-mail výše. Stížnost
+    lze podat u Úřadu pro ochranu osobních údajů (<a href="https://uoou.gov.cz">uoou.gov.cz</a>).
+  </p>
+
+  <h2>Zabezpečení</h2>
+  <p>
+    Komunikace mezi aplikací a serverem je šifrovaná (HTTPS). Hesla se ukládají
+    jen jako otisk. Přihlašovací tokeny a kódy pozvánek jsou v databázi rovněž
+    pouze v podobě otisku.
+  </p>
+
+  <h2>Děti</h2>
+  <p>
+    Aplikace není určena dětem mladším 16 let bez souhlasu zákonného zástupce.
+  </p>
+
+  <p style="margin-top:3rem"><a href="/">Zpět na úvod</a></p>
+</main>
+</body>
+</html>

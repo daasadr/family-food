@@ -43,6 +43,9 @@ class ApiService {
   Future<void> logout(String refreshToken) =>
       _client.post<void>('/auth/logout', body: {'refreshToken': refreshToken});
 
+  /// Nevratné smazání účtu i souvisejících dat (GDPR).
+  Future<void> deleteAccount() => _client.delete<void>('/auth/me');
+
   Future<AppUser> me() async {
     final data = await _client.get<Map<String, dynamic>>('/auth/me');
     return AppUser.fromJson(data);

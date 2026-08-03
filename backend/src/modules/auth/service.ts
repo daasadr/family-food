@@ -4,6 +4,7 @@ import { env } from '../../config/env.js';
 import { generateOpaqueToken, hashPassword, hashToken, verifyPassword } from '../../lib/crypto.js';
 import { conflict, unauthorized } from '../../lib/errors.js';
 
+
 export interface TokenPair {
   accessToken: string;
   refreshToken: string;
@@ -150,5 +151,46 @@ export class AuthService {
   async me(userId: string): Promise<PublicUser> {
     const user = await this.prisma.user.findUniqueOrThrow({ where: { id: userId } });
     return toPublicUser(user);
+  }
+
+  /**
+   * Smazání účtu na žádost uživatele (GDPR, vyžadují i oba obchody).
+   *
+   * Kaskády v schématu odstraní i tokeny, návrhy, hlasy a komentáře.
+   * Rodina se maže jen tehdy, když v ní uživatel zůstal sám — jinak by
+   * odchod jednoho člena smazal jídelníček všem ostatním.
+   */
+  async deleteAccount(userId: string): Promise<void> {
+    const user = await this.prisma.user.findUniqueOrThrow({ where: { id: userId } });
+
+    if (user.familyId) {
+      const others = await this.prisma.user.count({
+        where: { familyId: user.familyId, id: { not: userId } },
+      });
+
+      if (others === 0) {
+        // Poslední člen — rodina i její data odcházejí s ním.
+        await this.prisma.$transaction([
+          this.prisma.user.delete({ where: { id: userId } }),
+          this.prisma.family.delete({ where: { id: user.familyId } }),
+        ]);
+        return;
+      }
+
+      if (user.role === 'owner') {
+        const otherOwners = await this.prisma.user.count({
+          where: { familyId: user.familyId, role: 'owner', id: { not: userId } },
+        });
+        if (otherOwners === 0) {
+          throw conflict(
+            'LAST_OWNER',
+            'Jsi poslední vlastník rodiny. Nejdřív předej vlastnictví jinému členovi, '
+              + 'nebo rodinu opusť.',
+          );
+        }
+      }
+    }
+
+    await this.prisma.user.delete({ where: { id: userId } });
   }
 }

@@ -6,6 +6,9 @@ const prisma = new PrismaClient();
  * Globální předvytvořená galerie běžných jídel (familyId = null).
  * Bez značek výrobců — jen obecné názvy, jak požaduje zadání (sekce 5).
  *
+ * Žije v src/, ne v prisma/, aby se zkompiloval do dist/ a šel spustit
+ * v produkčním kontejneru, kde není tsx.
+ *
  * POZOR: fotky jsou zatím zástupné (placehold.co). Před vydáním je nahraď
  * vlastními nebo licencovanými obrázky uloženými na R2/MinIO.
  */

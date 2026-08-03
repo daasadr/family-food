@@ -29,6 +29,23 @@ async function registerUser(name: string) {
 
 const auth = (token: string) => ({ authorization: `Bearer ${token}` });
 
+/** Registruje uživatele a rovnou mu založí rodinu; vrací čerstvé tokeny. */
+async function registerWithFamily(name = 'Vlastník') {
+  const registered = await registerUser(name);
+  const created = await app.inject({
+    method: 'POST',
+    url: '/api/v1/families',
+    headers: auth(registered.tokens.accessToken),
+    payload: { name: `Rodina ${unique()}` },
+  });
+  expect(created.statusCode).toBe(201);
+  return {
+    email: registered.email,
+    token: created.json().tokens.accessToken as string,
+    familyId: created.json().family.id as string,
+  };
+}
+
 beforeAll(async () => {
   app = await buildServer();
   await app.ready();
@@ -92,6 +109,115 @@ describe('auth', () => {
       payload: { email: registered.email, password: 'heslo12345', name: 'Druhy' },
     });
     expect(res.statusCode).toBe(409);
+  });
+});
+
+describe('smazání účtu (GDPR)', () => {
+  it('smaže účet i s rodinou, když v ní byl uživatel sám', async () => {
+    const { token, email } = await registerWithFamily();
+
+    const res = await app.inject({
+      method: 'DELETE',
+      url: '/api/v1/auth/me',
+      headers: auth(token),
+    });
+    expect(res.statusCode).toBe(204);
+
+    // Účet je pryč — přihlášení pod stejným e-mailem už neprojde.
+    const login = await app.inject({
+      method: 'POST',
+      url: '/api/v1/auth/login',
+      payload: { email, password: 'heslo12345' },
+    });
+    expect(login.statusCode).toBe(401);
+  });
+
+  it('poslednímu vlastníkovi rodiny s dalšími členy smazání nedovolí', async () => {
+    const owner = await registerWithFamily();
+
+    // Druhý člen přijme pozvánku.
+    const invite = await app.inject({
+      method: 'POST',
+      url: '/api/v1/families/me/invites',
+      headers: auth(owner.token),
+      payload: {},
+    });
+    const member = await app.inject({
+      method: 'POST',
+      url: '/api/v1/auth/register',
+      payload: { email: `${unique()}@test.local`, password: 'heslo12345', name: 'Člen' },
+    });
+    await app.inject({
+      method: 'POST',
+      url: '/api/v1/families/invites/accept',
+      headers: auth(member.json().tokens.accessToken),
+      payload: { code: invite.json().code },
+    });
+
+    const res = await app.inject({
+      method: 'DELETE',
+      url: '/api/v1/auth/me',
+      headers: auth(owner.token),
+    });
+
+    expect(res.statusCode).toBe(409);
+    expect(res.json().error).toBe('LAST_OWNER');
+  });
+
+  it('běžný člen se smazat může a rodina zůstane', async () => {
+    const owner = await registerWithFamily();
+
+    const invite = await app.inject({
+      method: 'POST',
+      url: '/api/v1/families/me/invites',
+      headers: auth(owner.token),
+      payload: {},
+    });
+    const member = await app.inject({
+      method: 'POST',
+      url: '/api/v1/auth/register',
+      payload: { email: `${unique()}@test.local`, password: 'heslo12345', name: 'Člen' },
+    });
+    const joined = await app.inject({
+      method: 'POST',
+      url: '/api/v1/families/invites/accept',
+      headers: auth(member.json().tokens.accessToken),
+      payload: { code: invite.json().code },
+    });
+
+    const res = await app.inject({
+      method: 'DELETE',
+      url: '/api/v1/auth/me',
+      headers: auth(joined.json().tokens.accessToken),
+    });
+    expect(res.statusCode).toBe(204);
+
+    // Rodina i vlastník existují dál.
+    const family = await app.inject({
+      method: 'GET',
+      url: '/api/v1/families/me',
+      headers: auth(owner.token),
+    });
+    expect(family.statusCode).toBe(200);
+    expect(family.json().members).toHaveLength(1);
+  });
+});
+
+describe('veřejné stránky', () => {
+  it('zásady ochrany údajů jsou dostupné bez přihlášení', async () => {
+    const res = await app.inject({ method: 'GET', url: '/privacy' });
+
+    expect(res.statusCode).toBe(200);
+    expect(res.headers['content-type']).toContain('text/html');
+    expect(res.body).toContain('Zásady ochrany osobních údajů');
+  });
+
+  it('statické soubory nestíní API ani health', async () => {
+    expect((await app.inject({ method: 'GET', url: '/health' })).statusCode).toBe(200);
+
+    const api = await app.inject({ method: 'GET', url: '/api/v1/auth/me' });
+    // Bez tokenu 401 — kdyby trasu přebral statický server, vrátil by 404.
+    expect(api.statusCode).toBe(401);
   });
 });
 

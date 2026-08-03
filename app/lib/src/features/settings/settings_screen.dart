@@ -63,9 +63,59 @@ class SettingsScreen extends ConsumerWidget {
             title: const Text('Odhlásit se'),
             onTap: () => ref.read(authProvider.notifier).logout(),
           ),
+          ListTile(
+            leading: Icon(
+              Icons.delete_forever_outlined,
+              color: Theme.of(context).colorScheme.error,
+            ),
+            title: Text(
+              'Smazat účet',
+              style: TextStyle(color: Theme.of(context).colorScheme.error),
+            ),
+            subtitle: const Text('Nevratně odstraní účet i tvá data'),
+            onTap: () => _deleteAccount(context, ref),
+          ),
         ],
       ),
     );
+  }
+
+  /// Smazání účtu podle GDPR — vyžadují ho i Google Play a App Store.
+  Future<void> _deleteAccount(BuildContext context, WidgetRef ref) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Opravdu smazat účet?'),
+        content: const Text(
+          'Účet, tvé návrhy jídel, hlasy a komentáře se nenávratně smažou. '
+          'Pokud jsi v rodině sám, zmizí i celý jídelníček rodiny.\n\n'
+          'Tuhle akci nelze vzít zpět.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Zrušit'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(context).colorScheme.error,
+            ),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Smazat účet'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    try {
+      await ref.read(apiServiceProvider).deleteAccount();
+      // Odhlášení uklidí tokeny a vrátí na přihlašovací obrazovku.
+      await ref.read(authProvider.notifier).logout();
+    } on ApiException catch (e) {
+      if (context.mounted) showMessage(context, e.message, isError: true);
+    }
   }
 
   String _clenove(int count) => switch (count) {

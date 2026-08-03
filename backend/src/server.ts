@@ -1,6 +1,9 @@
 import cors from '@fastify/cors';
 import helmet from '@fastify/helmet';
 import rateLimit from '@fastify/rate-limit';
+import fastifyStatic from '@fastify/static';
+import { fileURLToPath } from 'node:url';
+import { dirname, join } from 'node:path';
 import Fastify, { type FastifyInstance } from 'fastify';
 import {
   serializerCompiler,
@@ -92,6 +95,14 @@ export async function buildServer(
   );
 
   app.get('/health', async () => ({ status: 'ok', timestamp: new Date().toISOString() }));
+
+  // Veřejné stránky: úvodní a zásady ochrany osobních údajů. Obchody Google
+  // Play i App Store vyžadují veřejnou URL se zásadami, tak je servíruje
+  // rovnou API — nasazení tím vystačí s jedním portem.
+  const publicDir = join(dirname(fileURLToPath(import.meta.url)), '..', 'public');
+  await app.register(fastifyStatic, { root: publicDir, prefix: '/' });
+
+  app.get('/privacy', async (_req, reply) => reply.sendFile('privacy.html'));
 
   await app.register(authRoutes, { prefix: '/api/v1/auth' });
   await app.register(familyRoutes, { prefix: '/api/v1/families' });

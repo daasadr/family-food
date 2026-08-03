@@ -1,0 +1,51 @@
+name: Deploy
+
+# Záměrně jen ruční spuštění, ne automaticky při každém pushi do main.
+# Server je sdílený s dalšími projekty — nasazení má být vědomé rozhodnutí.
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Napiš "nasadit" pro potvrzení'
+        required: true
+        default: ''
+
+jobs:
+  deploy:
+    name: Nasazení na server
+    runs-on: ubuntu-latest
+    # Prostředí s ochranou — v Settings → Environments lze zapnout schvalování.
+    environment: production
+
+    steps:
+      - name: Kontrola potvrzení
+        if: ${{ github.event.inputs.confirm != 'nasadit' }}
+        run: |
+          echo "Nasazení nepotvrzeno — do pole confirm napiš: nasadit"
+          exit 1
+
+      - name: Nasazení přes SSH
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script_stop: true
+          script: |
+            set -euo pipefail
+            cd /opt/familyfood
+            git fetch --all
+            git reset --hard origin/main
+            cd deploy
+            docker compose --env-file .env up -d --build
+            # Počkat, až kontejner projde healthcheckem.
+            for i in $(seq 1 30); do
+              if curl -fsS http://127.0.0.1:3004/health > /dev/null; then
+                echo "API běží."
+                exit 0
+              fi
+              sleep 2
+            done
+            echo "API nenaběhlo, log:"
+            docker compose logs --tail 50 api
+            exit 1
