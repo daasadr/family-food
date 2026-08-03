@@ -6,6 +6,7 @@ import '../../core/api_client.dart';
 import '../../models/models.dart';
 import '../../providers/providers.dart';
 import '../../widgets/common.dart';
+import 'delete_account_dialog.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -81,41 +82,14 @@ class SettingsScreen extends ConsumerWidget {
   }
 
   /// Smazání účtu podle GDPR — vyžadují ho i Google Play a App Store.
+  /// Varování i potvrzení řeší [showDeleteAccountDialog], protože se liší
+  /// podle toho, jestli s účtem odchází i celá rodina.
   Future<void> _deleteAccount(BuildContext context, WidgetRef ref) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Opravdu smazat účet?'),
-        content: const Text(
-          'Účet, tvé návrhy jídel, hlasy a komentáře se nenávratně smažou. '
-          'Pokud jsi v rodině sám, zmizí i celý jídelníček rodiny.\n\n'
-          'Tuhle akci nelze vzít zpět.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Zrušit'),
-          ),
-          FilledButton(
-            style: FilledButton.styleFrom(
-              backgroundColor: Theme.of(context).colorScheme.error,
-            ),
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Smazat účet'),
-          ),
-        ],
-      ),
-    );
+    final deleted = await showDeleteAccountDialog(context, ref);
+    if (!deleted) return;
 
-    if (confirmed != true) return;
-
-    try {
-      await ref.read(apiServiceProvider).deleteAccount();
-      // Odhlášení uklidí tokeny a vrátí na přihlašovací obrazovku.
-      await ref.read(authProvider.notifier).logout();
-    } on ApiException catch (e) {
-      if (context.mounted) showMessage(context, e.message, isError: true);
-    }
+    // Odhlášení uklidí tokeny a vrátí na přihlašovací obrazovku.
+    await ref.read(authProvider.notifier).logout();
   }
 
   String _clenove(int count) => switch (count) {

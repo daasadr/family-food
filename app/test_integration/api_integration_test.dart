@@ -164,6 +164,33 @@ void main() {
     }
   });
 
+  test('náhled smazání účtu varuje posledního člena', () async {
+    await signUpWithFamily('Poslední rodina');
+
+    final preview = await api.deletionPreview();
+
+    expect(preview.willDeleteFamily, isTrue);
+    expect(preview.familyName, 'Poslední rodina');
+    expect(preview.familyData, isNotNull);
+  });
+
+  test('smazání bez opsaného názvu rodiny selže, se správným projde', () async {
+    await signUpWithFamily('Mizející rodina');
+
+    // Backend musí odmítnout, dokud název nesedí.
+    await expectLater(
+      api.deleteAccount(confirmFamilyName: 'úplně jiný název'),
+      throwsA(
+        isA<ApiException>().having((e) => e.code, 'code', 'FAMILY_NAME_MISMATCH'),
+      ),
+    );
+
+    await api.deleteAccount(confirmFamilyName: 'Mizející rodina');
+
+    // Token smazaného účtu už neprojde autentizací.
+    await expectLater(api.me(), throwsA(isA<ApiException>()));
+  });
+
   test('přehled nákupních seznamů je dostupný', () async {
     await signUpWithFamily('Rodina se seznamy');
 

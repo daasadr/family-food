@@ -13,7 +13,7 @@ import {
 import { ZodError } from 'zod';
 
 import { corsOrigins, env } from './config/env.js';
-import { AppError } from './lib/errors.js';
+import { AppError, badRequest } from './lib/errors.js';
 import authRoutes from './modules/auth/routes.js';
 import familyRoutes from './modules/families/routes.js';
 import galleryRoutes from './modules/gallery/routes.js';
@@ -40,6 +40,23 @@ export async function buildServer(
 
   app.setValidatorCompiler(validatorCompiler);
   app.setSerializerCompiler(serializerCompiler);
+
+  // Fastify odmítá prázdné tělo s hlavičkou `content-type: application/json`.
+  // Klienti tak musí u požadavků bez dat posílat aspoň `{}` — což se snadno
+  // zapomene. Prázdné tělo tady bereme jako `{}` a řešíme to jednou pro celé API.
+  app.addContentTypeParser(
+    'application/json',
+    { parseAs: 'string' },
+    (_req, body, done) => {
+      const raw = typeof body === 'string' ? body.trim() : '';
+      if (raw === '') return done(null, {});
+      try {
+        done(null, JSON.parse(raw));
+      } catch {
+        done(badRequest('INVALID_JSON', 'Tělo požadavku není platný JSON.'), undefined);
+      }
+    },
+  );
 
   await app.register(helmet, { contentSecurityPolicy: false });
   await app.register(cors, { origin: corsOrigins, credentials: true });

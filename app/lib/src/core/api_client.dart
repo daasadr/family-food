@@ -76,7 +76,8 @@ class ApiClient {
   Future<T> put<T>(String path, {Object? body}) =>
       _request<T>(() => _dio.put(path, data: body));
 
-  Future<T> delete<T>(String path) => _request<T>(() => _dio.delete(path));
+  Future<T> delete<T>(String path, {Object? body}) =>
+      _request<T>(() => _dio.delete(path, data: body));
 
   Future<T> _request<T>(Future<Response<dynamic>> Function() send) async {
     Response<dynamic> response;

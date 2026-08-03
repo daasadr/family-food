@@ -63,10 +63,24 @@ const authPlugin: FastifyPluginAsync = async (app) => {
     } catch {
       throw unauthorized('INVALID_TOKEN', 'Přihlašovací token chybí nebo je neplatný.');
     }
+
+    // Členství a role se čtou z databáze, ne z tokenu. Access token žije
+    // 15 minut, takže by jinak smazaný účet ještě čtvrt hodiny procházel —
+    // a to by popíralo právo na výmaz. Zároveň tím odpadá starost o to,
+    // že token nese zastaralé familyId po změně členství.
+    const user = await app.prisma.user.findUnique({
+      where: { id: req.user.sub },
+      select: { id: true, familyId: true, role: true },
+    });
+
+    if (!user) {
+      throw unauthorized('ACCOUNT_GONE', 'Tento účet už neexistuje.');
+    }
+
     req.auth = {
-      userId: req.user.sub,
-      familyId: req.user.familyId ?? null,
-      role: req.user.role,
+      userId: user.id,
+      familyId: user.familyId,
+      role: user.role,
     };
   });
 

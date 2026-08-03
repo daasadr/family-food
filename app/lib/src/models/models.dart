@@ -386,6 +386,88 @@ class MealComment {
       );
 }
 
+/// Co způsobí smazání účtu. Načítá se před potvrzovacím dialogem, aby
+/// varování bylo konkrétní — poslednímu členovi mizí i celá rodina.
+class DeletionPreview {
+  const DeletionPreview({
+    required this.willDeleteFamily,
+    required this.memberCount,
+    this.familyName,
+    this.newOwnerName,
+    this.familyData,
+  });
+
+  final bool willDeleteFamily;
+  final int memberCount;
+  final String? familyName;
+
+  /// Komu připadne vlastnictví, když odchází poslední vlastník.
+  final String? newOwnerName;
+
+  /// Vyplněno jen když [willDeleteFamily].
+  final FamilyDataSummary? familyData;
+
+  factory DeletionPreview.fromJson(Map<String, dynamic> json) => DeletionPreview(
+        willDeleteFamily: json['willDeleteFamily'] as bool,
+        memberCount: json['memberCount'] as int,
+        familyName: json['familyName'] as String?,
+        newOwnerName: json['newOwnerName'] as String?,
+        familyData: json['familyData'] == null
+            ? null
+            : FamilyDataSummary.fromJson(
+                json['familyData'] as Map<String, dynamic>,
+              ),
+      );
+}
+
+class FamilyDataSummary {
+  const FamilyDataSummary({
+    required this.proposals,
+    required this.comments,
+    required this.shoppingLists,
+    required this.galleryItems,
+    required this.plannedDays,
+  });
+
+  final int proposals;
+  final int comments;
+  final int shoppingLists;
+  final int galleryItems;
+  final int plannedDays;
+
+  /// Souhrn pro varování, vypsaný jen z toho, co rodina skutečně má.
+  List<String> get lines => [
+        if (plannedDays > 0) '$plannedDays ${_dny(plannedDays)} naplánovaného jídelníčku',
+        if (proposals > 0) '$proposals ${_navrhy(proposals)} jídel',
+        if (comments > 0) '$comments ${_komentare(comments)}',
+        if (shoppingLists > 0) '$shoppingLists ${_seznamy(shoppingLists)}',
+        if (galleryItems > 0) '$galleryItems ${_fotky(galleryItems)} v galerii rodiny',
+      ];
+
+  bool get isEmpty => lines.isEmpty;
+
+  static String _dny(int n) => switch (n) { 1 => 'den', 2 || 3 || 4 => 'dny', _ => 'dní' };
+  static String _navrhy(int n) =>
+      switch (n) { 1 => 'návrh', 2 || 3 || 4 => 'návrhy', _ => 'návrhů' };
+  static String _komentare(int n) =>
+      switch (n) { 1 => 'komentář', 2 || 3 || 4 => 'komentáře', _ => 'komentářů' };
+  static String _seznamy(int n) => switch (n) {
+        1 => 'nákupní seznam',
+        2 || 3 || 4 => 'nákupní seznamy',
+        _ => 'nákupních seznamů',
+      };
+  static String _fotky(int n) =>
+      switch (n) { 1 => 'fotka', 2 || 3 || 4 => 'fotky', _ => 'fotek' };
+
+  factory FamilyDataSummary.fromJson(Map<String, dynamic> json) => FamilyDataSummary(
+        proposals: json['proposals'] as int,
+        comments: json['comments'] as int,
+        shoppingLists: json['shoppingLists'] as int,
+        galleryItems: json['galleryItems'] as int,
+        plannedDays: json['plannedDays'] as int,
+      );
+}
+
 class ShoppingItem {
   const ShoppingItem({
     required this.id,

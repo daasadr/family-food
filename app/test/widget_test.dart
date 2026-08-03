@@ -84,6 +84,85 @@ void main() {
     });
   });
 
+  group('náhled smazání účtu', () {
+    DeletionPreview preview(Map<String, dynamic> json) =>
+        DeletionPreview.fromJson({
+          'willDeleteFamily': false,
+          'familyName': 'Novákovi',
+          'memberCount': 2,
+          'newOwnerName': null,
+          'familyData': null,
+          ...json,
+        });
+
+    test('poslednímu členovi hlásí smazání rodiny i s výčtem dat', () {
+      final p = preview({
+        'willDeleteFamily': true,
+        'memberCount': 1,
+        'familyData': {
+          'proposals': 12,
+          'comments': 3,
+          'shoppingLists': 2,
+          'galleryItems': 0,
+          'plannedDays': 21,
+        },
+      });
+
+      expect(p.willDeleteFamily, true);
+      expect(p.familyData!.lines, [
+        '21 dní naplánovaného jídelníčku',
+        '12 návrhů jídel',
+        '3 komentáře',
+        '2 nákupní seznamy',
+      ]);
+    });
+
+    test('prázdné položky se do výčtu nedostanou', () {
+      final p = preview({
+        'willDeleteFamily': true,
+        'memberCount': 1,
+        'familyData': {
+          'proposals': 0,
+          'comments': 0,
+          'shoppingLists': 0,
+          'galleryItems': 0,
+          'plannedDays': 0,
+        },
+      });
+
+      expect(p.familyData!.lines, isEmpty);
+      expect(p.familyData!.isEmpty, true);
+    });
+
+    test('skloňuje podle počtu', () {
+      FamilyDataSummary withProposals(int n) => FamilyDataSummary.fromJson({
+            'proposals': n,
+            'comments': 0,
+            'shoppingLists': 0,
+            'galleryItems': 0,
+            'plannedDays': 0,
+          });
+
+      expect(withProposals(1).lines.single, '1 návrh jídel');
+      expect(withProposals(3).lines.single, '3 návrhy jídel');
+      expect(withProposals(9).lines.single, '9 návrhů jídel');
+    });
+
+    test('členovi v rodině s ostatními rodina nemizí', () {
+      final p = preview({'memberCount': 3});
+
+      expect(p.willDeleteFamily, false);
+      expect(p.familyData, isNull);
+    });
+
+    test('odchod posledního vlastníka hlásí nástupce', () {
+      final p = preview({'newOwnerName': 'Petra'});
+
+      expect(p.willDeleteFamily, false);
+      expect(p.newOwnerName, 'Petra');
+    });
+  });
+
   group('nákupní seznam', () {
     ShoppingList listWith(List<Map<String, dynamic>> items) =>
         ShoppingList.fromJson({

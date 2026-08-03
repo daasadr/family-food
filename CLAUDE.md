@@ -38,9 +38,14 @@ D:\dev\pgsql\bin\pg_ctl.exe -D D:\dev\pgdata -l D:\dev\pgdata\server.log start
 
 ## Na co si dát pozor
 
-- Access token nese `familyId`. Každý endpoint, který mění členství v rodině
-  (založení, přijetí pozvánky, odchod), proto **vrací i nové tokeny** — klient
-  je musí uložit, jinak by 15 minut pracoval se starým `familyId`.
+- Access token sice nese `familyId` a `role`, ale **autentizace je nepoužívá** —
+  `authenticate` si členství načte z databáze. Bez toho by smazaný účet ještě
+  15 minut procházel (což popírá právo na výmaz) a token by nesl zastaralé
+  `familyId`. Endpointy měnící členství přesto vracejí nové tokeny; je to
+  levné a drží payload pravdivý.
+- **Prázdné tělo požadavku** řeší vlastní content-type parser v `server.ts` —
+  bere `''` jako `{}`. Fastify by jinak odmítl `POST`/`DELETE` bez těla
+  s hlavičkou `content-type: application/json`.
 - Sloty dne se materializují ze šablony až při otevření dne (`GET /planner/days/:date`).
   Vypnutí slotu v šabloně neodstraní už vytvořené sloty v kalendáři.
 - `POST` bez těla musí posílat aspoň `{}` — Fastify odmítá prázdné tělo
@@ -63,10 +68,13 @@ D:\dev\pgsql\bin\pg_ctl.exe -D D:\dev\pgdata -l D:\dev\pgdata\server.log start
 ## Testy
 
 ```powershell
-cd backend; npm test                    # 13 integračních testů (family_food_test)
-cd app; flutter test                    # 8 unit testů, bez závislosti na backendu
-cd app; flutter test test_integration   # 6 testů proti běžícímu backendu na :3000
+cd backend; npm test                    # 46 testů (family_food_test)
+cd app; flutter test                    # 17 unit testů, bez závislosti na backendu
+cd app; flutter test test_integration   # 10 testů proti běžícímu backendu na :3000
 ```
+
+Testy nákupního seznamu si podstrčí vlastní generátor (`buildServer({ shoppingListGenerator })`),
+takže neběží proti Claude API a nepotřebují klíč.
 
 Integrační testy aplikace leží mimo `test/`, aby je běžné `flutter test` (a CI bez
 backendu) nespouštělo. Ověřují, že modely sedí na skutečné odpovědi backendu —

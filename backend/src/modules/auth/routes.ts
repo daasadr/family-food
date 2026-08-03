@@ -1,6 +1,7 @@
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { z } from 'zod';
 
+import { badRequest } from '../../lib/errors.js';
 import { AuthService } from './service.js';
 
 const publicUserSchema = z.object({
@@ -20,6 +21,11 @@ const tokenPairSchema = z.object({
 const sessionSchema = z.object({
   user: publicUserSchema,
   tokens: tokenPairSchema,
+});
+
+/** Potvrzení u smazání účtu. Povinné jen pro posledního člena rodiny. */
+const deleteBodySchema = z.object({
+  confirmFamilyName: z.string().max(80).optional(),
 });
 
 const passwordSchema = z
@@ -91,18 +97,56 @@ const authRoutes: FastifyPluginAsyncZod = async (app) => {
     },
   );
 
+  app.get(
+    '/me/deletion-preview',
+    {
+      preHandler: app.authenticate,
+      schema: {
+        tags: ['auth'],
+        description:
+          'Co smazání účtu způsobí. Klient podle toho staví potvrzovací dialog.',
+        response: {
+          200: z.object({
+            willDeleteFamily: z.boolean(),
+            familyName: z.string().nullable(),
+            memberCount: z.number(),
+            newOwnerName: z.string().nullable(),
+            familyData: z
+              .object({
+                proposals: z.number(),
+                comments: z.number(),
+                shoppingLists: z.number(),
+                galleryItems: z.number(),
+                plannedDays: z.number(),
+              })
+              .nullable(),
+          }),
+        },
+      },
+    },
+    async (req) => service.deletionPreview(req.auth.userId),
+  );
+
   app.delete(
     '/me',
     {
       preHandler: app.authenticate,
       schema: {
         tags: ['auth'],
-        description: 'Nevratné smazání účtu i souvisejících dat (GDPR).',
+        description:
+          'Nevratné smazání účtu i souvisejících dat (GDPR). Poslední člen '
+          + 'rodiny musí potvrdit opsáním názvu rodiny.',
+        // Bez `body` ve schématu, aby šlo mazat i požadavkem bez těla —
+        // potvrzení je povinné jen pro posledního člena rodiny.
         response: { 204: z.null() },
       },
     },
     async (req, reply) => {
-      await service.deleteAccount(req.auth.userId);
+      const parsed = deleteBodySchema.safeParse(req.body ?? {});
+      if (!parsed.success) {
+        throw badRequest('VALIDATION_ERROR', 'Neplatná data v požadavku.');
+      }
+      await service.deleteAccount(req.auth.userId, parsed.data.confirmFamilyName);
       return reply.code(204).send(null);
     },
   );

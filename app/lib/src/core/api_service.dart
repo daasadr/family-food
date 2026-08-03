@@ -43,8 +43,23 @@ class ApiService {
   Future<void> logout(String refreshToken) =>
       _client.post<void>('/auth/logout', body: {'refreshToken': refreshToken});
 
+  /// Co smazání účtu způsobí — načítá se před potvrzovacím dialogem.
+  Future<DeletionPreview> deletionPreview() async {
+    final data =
+        await _client.get<Map<String, dynamic>>('/auth/me/deletion-preview');
+    return DeletionPreview.fromJson(data);
+  }
+
   /// Nevratné smazání účtu i souvisejících dat (GDPR).
-  Future<void> deleteAccount() => _client.delete<void>('/auth/me');
+  ///
+  /// Poslední člen rodiny musí předat [confirmFamilyName] — jinak backend
+  /// požadavek odmítne, protože by s účtem zmizela i celá rodina.
+  Future<void> deleteAccount({String? confirmFamilyName}) => _client.delete<void>(
+        '/auth/me',
+        body: {
+          if (confirmFamilyName != null) 'confirmFamilyName': confirmFamilyName,
+        },
+      );
 
   Future<AppUser> me() async {
     final data = await _client.get<Map<String, dynamic>>('/auth/me');

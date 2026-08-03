@@ -32,18 +32,25 @@ const auth = (token: string) => ({ authorization: `Bearer ${token}` });
 /** Registruje uživatele a rovnou mu založí rodinu; vrací čerstvé tokeny. */
 async function registerWithFamily(name = 'Vlastník') {
   const registered = await registerUser(name);
+  const familyName = `Rodina ${unique()}`;
   const created = await app.inject({
     method: 'POST',
     url: '/api/v1/families',
     headers: auth(registered.tokens.accessToken),
-    payload: { name: `Rodina ${unique()}` },
+    payload: { name: familyName },
   });
   expect(created.statusCode).toBe(201);
   return {
     email: registered.email,
+    familyName,
     token: created.json().tokens.accessToken as string,
     familyId: created.json().family.id as string,
   };
+}
+
+/** Datum v budoucnu uvnitř povoleného tříměsíčního okna. */
+function futureDate(offsetDays = 7): string {
+  return new Date(Date.now() + offsetDays * 86_400_000).toISOString().slice(0, 10);
 }
 
 beforeAll(async () => {
@@ -113,64 +120,12 @@ describe('auth', () => {
 });
 
 describe('smazání účtu (GDPR)', () => {
-  it('smaže účet i s rodinou, když v ní byl uživatel sám', async () => {
-    const { token, email } = await registerWithFamily();
-
-    const res = await app.inject({
-      method: 'DELETE',
-      url: '/api/v1/auth/me',
-      headers: auth(token),
-    });
-    expect(res.statusCode).toBe(204);
-
-    // Účet je pryč — přihlášení pod stejným e-mailem už neprojde.
-    const login = await app.inject({
-      method: 'POST',
-      url: '/api/v1/auth/login',
-      payload: { email, password: 'heslo12345' },
-    });
-    expect(login.statusCode).toBe(401);
-  });
-
-  it('poslednímu vlastníkovi rodiny s dalšími členy smazání nedovolí', async () => {
-    const owner = await registerWithFamily();
-
-    // Druhý člen přijme pozvánku.
+  /** Přizve druhého člena do rodiny a vrátí jeho token. */
+  async function addMember(ownerToken: string) {
     const invite = await app.inject({
       method: 'POST',
       url: '/api/v1/families/me/invites',
-      headers: auth(owner.token),
-      payload: {},
-    });
-    const member = await app.inject({
-      method: 'POST',
-      url: '/api/v1/auth/register',
-      payload: { email: `${unique()}@test.local`, password: 'heslo12345', name: 'Člen' },
-    });
-    await app.inject({
-      method: 'POST',
-      url: '/api/v1/families/invites/accept',
-      headers: auth(member.json().tokens.accessToken),
-      payload: { code: invite.json().code },
-    });
-
-    const res = await app.inject({
-      method: 'DELETE',
-      url: '/api/v1/auth/me',
-      headers: auth(owner.token),
-    });
-
-    expect(res.statusCode).toBe(409);
-    expect(res.json().error).toBe('LAST_OWNER');
-  });
-
-  it('běžný člen se smazat může a rodina zůstane', async () => {
-    const owner = await registerWithFamily();
-
-    const invite = await app.inject({
-      method: 'POST',
-      url: '/api/v1/families/me/invites',
-      headers: auth(owner.token),
+      headers: auth(ownerToken),
       payload: {},
     });
     const member = await app.inject({
@@ -184,15 +139,115 @@ describe('smazání účtu (GDPR)', () => {
       headers: auth(member.json().tokens.accessToken),
       payload: { code: invite.json().code },
     });
+    expect(joined.statusCode).toBe(200);
+    return joined.json().tokens.accessToken as string;
+  }
+
+  it('náhled varuje posledního člena, že mizí celá rodina', async () => {
+    const { token, familyName } = await registerWithFamily();
+
+    const res = await app.inject({
+      method: 'GET',
+      url: '/api/v1/auth/me/deletion-preview',
+      headers: auth(token),
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(res.json().willDeleteFamily).toBe(true);
+    expect(res.json().familyName).toBe(familyName);
+    // Přehled toho, o co přijde — varování má být konkrétní, ne obecné.
+    expect(res.json().familyData).not.toBeNull();
+    expect(res.json().familyData.plannedDays).toBeGreaterThanOrEqual(0);
+  });
+
+  it('bez opsání názvu rodiny se poslednímu členovi nic nesmaže', async () => {
+    const { token, email } = await registerWithFamily();
 
     const res = await app.inject({
       method: 'DELETE',
       url: '/api/v1/auth/me',
-      headers: auth(joined.json().tokens.accessToken),
+      headers: auth(token),
+      payload: {},
+    });
+
+    expect(res.statusCode).toBe(400);
+    expect(res.json().error).toBe('FAMILY_NAME_MISMATCH');
+
+    // Účet pořád existuje.
+    const login = await app.inject({
+      method: 'POST',
+      url: '/api/v1/auth/login',
+      payload: { email, password: 'heslo12345' },
+    });
+    expect(login.statusCode).toBe(200);
+  });
+
+  it('špatně opsaný název rodinu neodstraní', async () => {
+    const { token } = await registerWithFamily();
+
+    const res = await app.inject({
+      method: 'DELETE',
+      url: '/api/v1/auth/me',
+      headers: auth(token),
+      payload: { confirmFamilyName: 'Nějaká úplně jiná rodina' },
+    });
+
+    expect(res.statusCode).toBe(400);
+    expect(res.json().error).toBe('FAMILY_NAME_MISMATCH');
+  });
+
+  it('se správně opsaným názvem smaže účet i celou rodinu', async () => {
+    const { token, email, familyName } = await registerWithFamily();
+
+    const res = await app.inject({
+      method: 'DELETE',
+      url: '/api/v1/auth/me',
+      headers: auth(token),
+      payload: { confirmFamilyName: familyName },
     });
     expect(res.statusCode).toBe(204);
 
-    // Rodina i vlastník existují dál.
+    const login = await app.inject({
+      method: 'POST',
+      url: '/api/v1/auth/login',
+      payload: { email, password: 'heslo12345' },
+    });
+    expect(login.statusCode).toBe(401);
+  });
+
+  it('název rodiny se porovnává bez ohledu na velikost písmen a mezery', async () => {
+    const { token, familyName } = await registerWithFamily();
+
+    const res = await app.inject({
+      method: 'DELETE',
+      url: '/api/v1/auth/me',
+      headers: auth(token),
+      payload: { confirmFamilyName: `  ${familyName.toUpperCase()}  ` },
+    });
+
+    expect(res.statusCode).toBe(204);
+  });
+
+  it('člen v rodině s ostatními se smaže bez opisování a rodina zůstane', async () => {
+    const owner = await registerWithFamily();
+    const memberToken = await addMember(owner.token);
+
+    // Náhled členovi rodinu nemaže, takže potvrzení nepožaduje.
+    const preview = await app.inject({
+      method: 'GET',
+      url: '/api/v1/auth/me/deletion-preview',
+      headers: auth(memberToken),
+    });
+    expect(preview.json().willDeleteFamily).toBe(false);
+    expect(preview.json().memberCount).toBe(2);
+
+    const res = await app.inject({
+      method: 'DELETE',
+      url: '/api/v1/auth/me',
+      headers: auth(memberToken),
+    });
+    expect(res.statusCode).toBe(204);
+
     const family = await app.inject({
       method: 'GET',
       url: '/api/v1/families/me',
@@ -200,6 +255,80 @@ describe('smazání účtu (GDPR)', () => {
     });
     expect(family.statusCode).toBe(200);
     expect(family.json().members).toHaveLength(1);
+  });
+
+  it('odchod posledního vlastníka předá rodinu dalšímu členovi', async () => {
+    const owner = await registerWithFamily();
+    const memberToken = await addMember(owner.token);
+
+    // Náhled vlastníkovi řekne, kdo rodinu převezme.
+    const preview = await app.inject({
+      method: 'GET',
+      url: '/api/v1/auth/me/deletion-preview',
+      headers: auth(owner.token),
+    });
+    expect(preview.json().willDeleteFamily).toBe(false);
+    expect(preview.json().newOwnerName).toBe('Člen');
+
+    // Právo na výmaz nesmí uvíznout na nepředaném vlastnictví.
+    const res = await app.inject({
+      method: 'DELETE',
+      url: '/api/v1/auth/me',
+      headers: auth(owner.token),
+    });
+    expect(res.statusCode).toBe(204);
+
+    const family = await app.inject({
+      method: 'GET',
+      url: '/api/v1/families/me',
+      headers: auth(memberToken),
+    });
+    expect(family.statusCode).toBe(200);
+    expect(family.json().members).toHaveLength(1);
+    expect(family.json().members[0].role).toBe('owner');
+  });
+
+  it('smazáním posledního člena zmizí i data rodiny', async () => {
+    const { token, familyName } = await registerWithFamily();
+
+    // Vytvoříme jídlo, ať je co mazat.
+    const date = futureDate();
+    const day = await app.inject({
+      method: 'GET',
+      url: `/api/v1/planner/days/${date}`,
+      headers: auth(token),
+    });
+    const slot = day.json().slots[0];
+    await app.inject({
+      method: 'POST',
+      url: `/api/v1/planner/slots/${slot.id}/proposals`,
+      headers: auth(token),
+      payload: { title: 'Guláš' },
+    });
+
+    const preview = await app.inject({
+      method: 'GET',
+      url: '/api/v1/auth/me/deletion-preview',
+      headers: auth(token),
+    });
+    expect(preview.json().familyData.proposals).toBe(1);
+
+    const res = await app.inject({
+      method: 'DELETE',
+      url: '/api/v1/auth/me',
+      headers: auth(token),
+      payload: { confirmFamilyName: familyName },
+    });
+    expect(res.statusCode).toBe(204);
+
+    // Slot i návrh odešly kaskádou s rodinou — token už stejně neplatí,
+    // takže se ověří přes prázdný dotaz na plánovač.
+    const orphaned = await app.inject({
+      method: 'GET',
+      url: `/api/v1/planner/days/${date}`,
+      headers: auth(token),
+    });
+    expect(orphaned.statusCode).toBe(401);
   });
 });
 

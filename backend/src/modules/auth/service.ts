@@ -2,12 +2,32 @@ import type { FamilyRole, PrismaClient, User } from '@prisma/client';
 
 import { env } from '../../config/env.js';
 import { generateOpaqueToken, hashPassword, hashToken, verifyPassword } from '../../lib/crypto.js';
-import { conflict, unauthorized } from '../../lib/errors.js';
+import { badRequest, conflict, unauthorized } from '../../lib/errors.js';
 
 
 export interface TokenPair {
   accessToken: string;
   refreshToken: string;
+}
+
+/** Kolik dat rodiny zmizí se smazáním posledního člena. */
+export interface FamilyDataSummary {
+  proposals: number;
+  comments: number;
+  shoppingLists: number;
+  galleryItems: number;
+  plannedDays: number;
+}
+
+export interface DeletionPreview {
+  /** True, když je uživatel poslední v rodině — pak mizí i rodina. */
+  willDeleteFamily: boolean;
+  familyName: string | null;
+  memberCount: number;
+  /** Komu připadne vlastnictví, pokud odchází poslední vlastník. */
+  newOwnerName: string | null;
+  /** Vyplněno jen když willDeleteFamily. */
+  familyData: FamilyDataSummary | null;
 }
 
 export interface PublicUser {
@@ -154,43 +174,122 @@ export class AuthService {
   }
 
   /**
-   * Smazání účtu na žádost uživatele (GDPR, vyžadují i oba obchody).
-   *
-   * Kaskády v schématu odstraní i tokeny, návrhy, hlasy a komentáře.
-   * Rodina se maže jen tehdy, když v ní uživatel zůstal sám — jinak by
-   * odchod jednoho člena smazal jídelníček všem ostatním.
+   * Co se stane při smazání účtu. Klient si to vyžádá dřív, než ukáže
+   * potvrzovací dialog — u posledního člena rodiny je totiž potřeba
+   * varovat, že mizí celá rodina, a vyžádat si opsání jejího názvu.
    */
-  async deleteAccount(userId: string): Promise<void> {
+  async deletionPreview(userId: string): Promise<DeletionPreview> {
     const user = await this.prisma.user.findUniqueOrThrow({ where: { id: userId } });
 
-    if (user.familyId) {
-      const others = await this.prisma.user.count({
-        where: { familyId: user.familyId, id: { not: userId } },
-      });
-
-      if (others === 0) {
-        // Poslední člen — rodina i její data odcházejí s ním.
-        await this.prisma.$transaction([
-          this.prisma.user.delete({ where: { id: userId } }),
-          this.prisma.family.delete({ where: { id: user.familyId } }),
-        ]);
-        return;
-      }
-
-      if (user.role === 'owner') {
-        const otherOwners = await this.prisma.user.count({
-          where: { familyId: user.familyId, role: 'owner', id: { not: userId } },
-        });
-        if (otherOwners === 0) {
-          throw conflict(
-            'LAST_OWNER',
-            'Jsi poslední vlastník rodiny. Nejdřív předej vlastnictví jinému členovi, '
-              + 'nebo rodinu opusť.',
-          );
-        }
-      }
+    if (!user.familyId) {
+      return {
+        willDeleteFamily: false,
+        familyName: null,
+        memberCount: 0,
+        newOwnerName: null,
+        familyData: null,
+      };
     }
 
-    await this.prisma.user.delete({ where: { id: userId } });
+    const familyId = user.familyId;
+    const family = await this.prisma.family.findUniqueOrThrow({ where: { id: familyId } });
+
+    const others = await this.prisma.user.findMany({
+      where: { familyId, id: { not: userId } },
+      orderBy: { createdAt: 'asc' },
+      select: { id: true, name: true, role: true },
+    });
+
+    if (others.length > 0) {
+      // Rodina zůstává. Pokud odchází poslední vlastník, převezme roli
+      // nejdéle přítomný člen — právo na výmaz nesmí uvíznout na tom,
+      // že uživatel zapomněl předat vlastnictví.
+      const someoneElseOwns = others.some((m) => m.role === 'owner');
+      return {
+        willDeleteFamily: false,
+        familyName: family.name,
+        memberCount: others.length + 1,
+        newOwnerName:
+          user.role === 'owner' && !someoneElseOwns ? (others[0]?.name ?? null) : null,
+        familyData: null,
+      };
+    }
+
+    // Poslední člen — s účtem odchází i celá rodina. Spočítáme, o co přijde,
+    // aby varování nebylo obecné, ale konkrétní.
+    const [proposals, comments, shoppingLists, galleryItems, plannedDays] = await Promise.all([
+      this.prisma.mealProposal.count({ where: { mealSlot: { familyId } } }),
+      this.prisma.comment.count({ where: { proposal: { mealSlot: { familyId } } } }),
+      this.prisma.shoppingList.count({ where: { familyId } }),
+      this.prisma.mealGalleryItem.count({ where: { familyId } }),
+      this.prisma.mealSlot
+        .findMany({ where: { familyId }, distinct: ['date'], select: { date: true } })
+        .then((rows) => rows.length),
+    ]);
+
+    return {
+      willDeleteFamily: true,
+      familyName: family.name,
+      memberCount: 1,
+      newOwnerName: null,
+      familyData: { proposals, comments, shoppingLists, galleryItems, plannedDays },
+    };
+  }
+
+  /**
+   * Smazání účtu na žádost uživatele (GDPR, vyžadují i oba obchody).
+   *
+   * Kaskády v schématu odstraní tokeny, návrhy, hlasy i komentáře.
+   *
+   * Rodina se maže jen s posledním členem, a to až po opsání jejího názvu —
+   * bez toho by jedno chybné ťuknutí smazalo celou historii jídelníčku.
+   * Když v rodině někdo zůstává, data zůstávají jemu.
+   */
+  async deleteAccount(userId: string, confirmFamilyName?: string): Promise<void> {
+    const user = await this.prisma.user.findUniqueOrThrow({ where: { id: userId } });
+
+    if (!user.familyId) {
+      await this.prisma.user.delete({ where: { id: userId } });
+      return;
+    }
+
+    const familyId = user.familyId;
+    const others = await this.prisma.user.findMany({
+      where: { familyId, id: { not: userId } },
+      orderBy: { createdAt: 'asc' },
+      select: { id: true, role: true },
+    });
+
+    if (others.length === 0) {
+      const family = await this.prisma.family.findUniqueOrThrow({ where: { id: familyId } });
+
+      const typed = confirmFamilyName?.trim() ?? '';
+      if (typed.toLocaleLowerCase('cs') !== family.name.trim().toLocaleLowerCase('cs')) {
+        throw badRequest(
+          'FAMILY_NAME_MISMATCH',
+          `Jsi poslední člen rodiny, takže se smaže i celá rodina a její jídelníček. `
+            + `Pro potvrzení opiš přesně její název: „${family.name}".`,
+        );
+      }
+
+      // Smazání rodiny kaskádou odnese sloty, návrhy, seznamy i galerii.
+      await this.prisma.$transaction([
+        this.prisma.user.delete({ where: { id: userId } }),
+        this.prisma.family.delete({ where: { id: familyId } }),
+      ]);
+      return;
+    }
+
+    const promoteId =
+      user.role === 'owner' && !others.some((m) => m.role === 'owner')
+        ? others[0]?.id
+        : undefined;
+
+    await this.prisma.$transaction([
+      ...(promoteId
+        ? [this.prisma.user.update({ where: { id: promoteId }, data: { role: 'owner' } })]
+        : []),
+      this.prisma.user.delete({ where: { id: userId } }),
+    ]);
   }
 }
