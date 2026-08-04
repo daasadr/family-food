@@ -19,6 +19,16 @@ const envSchema = z.object({
   CORS_ORIGINS: z.string().default('*'),
 
   ANTHROPIC_API_KEY: z.string().optional(),
+
+  // Push notifikace (FCM). Bez nich API funguje dál, jen se nic neodešle.
+  FCM_PROJECT_ID: z.string().optional(),
+  /** Celý JSON service accountu jako jeden řádek. Pro lokální vývoj. */
+  FCM_SERVICE_ACCOUNT: z.string().optional(),
+  /**
+   * Cesta k souboru se service accountem. V Dockeru spolehlivější než
+   * předávat JSON s uvozovkami přes proměnnou prostředí.
+   */
+  FCM_SERVICE_ACCOUNT_FILE: z.string().optional(),
 });
 
 const parsed = envSchema.safeParse(process.env);

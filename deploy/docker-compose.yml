@@ -54,6 +54,14 @@ services:
       INVITE_TTL_DAYS: ${INVITE_TTL_DAYS:-14}
       CORS_ORIGINS: ${CORS_ORIGINS:-*}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      FCM_PROJECT_ID: ${FCM_PROJECT_ID:-}
+      # Cesta uvnitř kontejneru; soubor se mountuje níž. Prázdný FCM_PROJECT_ID
+      # push vypne, i kdyby soubor existoval.
+      FCM_SERVICE_ACCOUNT_FILE: /run/secrets/firebase-service-account.json
+    volumes:
+      # Service account se do image nezapéká — mountuje se za běhu, jen pro
+      # čtení. Když soubor neexistuje, push se prostě neodesílá.
+      - ./firebase-service-account.json:/run/secrets/firebase-service-account.json:ro
     ports:
       # host 127.0.0.1:3004  ->  Fastify uvnitř kontejneru na 3000
       - '127.0.0.1:3004:3000'

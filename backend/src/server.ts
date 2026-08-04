@@ -18,9 +18,12 @@ import authRoutes from './modules/auth/routes.js';
 import familyRoutes from './modules/families/routes.js';
 import galleryRoutes from './modules/gallery/routes.js';
 import plannerRoutes from './modules/planner/routes.js';
+import type { PushSender } from './modules/notifications/fcm.js';
+import notificationRoutes from './modules/notifications/routes.js';
 import type { ShoppingListGenerator } from './modules/shopping/ai.js';
 import shoppingRoutes from './modules/shopping/routes.js';
 import authPlugin from './plugins/auth.js';
+import notificationsPlugin from './plugins/notifications.js';
 import prismaPlugin from './plugins/prisma.js';
 
 export interface BuildServerOptions {
@@ -29,6 +32,12 @@ export interface BuildServerOptions {
    * implementaci, aby nepotřebovaly klíč k AI ani síť.
    */
   shoppingListGenerator?: ShoppingListGenerator;
+
+  /**
+   * Přebije odesílač push notifikací. `null` push vypne úplně —
+   * testy tak ověří i chování bez nastaveného FCM.
+   */
+  pushSender?: PushSender | null;
 }
 
 export async function buildServer(
@@ -67,6 +76,7 @@ export async function buildServer(
 
   await app.register(prismaPlugin);
   await app.register(authPlugin);
+  await app.register(notificationsPlugin, { sender: options.pushSender });
 
   app.setErrorHandler((error, req, reply) => {
     if (error instanceof AppError) {
@@ -129,6 +139,7 @@ export async function buildServer(
     prefix: '/api/v1/shopping-lists',
     generator: options.shoppingListGenerator,
   });
+  await app.register(notificationRoutes, { prefix: '/api/v1/notifications' });
 
   return app;
 }

@@ -193,6 +193,19 @@ const plannerRoutes: FastifyPluginAsyncZod = async (app) => {
         req.params.slotId,
         req.body,
       );
+
+      // Ostatní ať vědí, že je o čem hlasovat. Odesílá se na pozadí —
+      // nedostupné FCM nesmí shodit uložení návrhu.
+      app.notifications.notifyFamilyInBackground({
+        familyId: req.familyId,
+        excludeUserId: req.auth.userId,
+        message: {
+          title: 'Nový návrh jídla',
+          body: `${proposal.proposedBy.name} navrhuje: ${proposal.title}`,
+          data: { type: 'proposal', proposalId: proposal.id },
+        },
+      });
+
       return reply.code(201).send(proposal);
     },
   );
@@ -323,6 +336,23 @@ const plannerRoutes: FastifyPluginAsyncZod = async (app) => {
         req.params.proposalId,
         req.body.text,
       );
+
+      const proposal = await service.getProposal(
+        req.familyId,
+        req.auth.userId,
+        req.params.proposalId,
+      );
+
+      app.notifications.notifyFamilyInBackground({
+        familyId: req.familyId,
+        excludeUserId: req.auth.userId,
+        message: {
+          title: `Komentář k jídlu ${proposal.title}`,
+          body: `${comment.author.name}: ${comment.text}`,
+          data: { type: 'comment', proposalId: req.params.proposalId },
+        },
+      });
+
       return reply.code(201).send(comment);
     },
   );

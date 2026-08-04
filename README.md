@@ -163,6 +163,20 @@ i bez `--dart-define` — aby se omylem nevydala verze ukazující na localhost.
 Generování vyžaduje `ANTHROPIC_API_KEY`. Bez klíče vrací `409 AI_NOT_CONFIGURED` —
 zbytek API funguje normálně.
 
+**Push notifikace** — `/notifications`
+
+| Metoda | Cesta | Popis |
+|---|---|---|
+| POST | `/devices` | registrace FCM tokenu zařízení (aplikace volá po každém startu) |
+| DELETE | `/devices` | odhlášení zařízení při odhlášení uživatele |
+
+Odesílá se při novém návrhu jídla a novém komentáři, vždy ostatním členům
+rodiny kromě autora. Bez `FCM_PROJECT_ID` a service accountu API funguje
+dál, jen se nic neodešle — `registered: true, pushEnabled: false`.
+
+Odeslání běží na pozadí: výpadek FCM nesmí shodit uložení návrhu. Tokeny,
+které FCM odmítne jako neplatné, se samy mažou.
+
 **Galerie** — `/gallery`
 
 | Metoda | Cesta | Popis |

@@ -73,11 +73,36 @@ model User {
 
   family        Family?        @relation(fields: [familyId], references: [id], onDelete: SetNull)
   refreshTokens RefreshToken[]
+  deviceTokens  DeviceToken[]
   proposals     MealProposal[]
   votes         Vote[]
   comments      Comment[]
 
   @@index([familyId])
+}
+
+enum DevicePlatform {
+  android
+  ios
+  web
+}
+
+/// Registrace zařízení pro push notifikace (FCM).
+///
+/// Token vydává Firebase samotnému zařízení a může se kdykoli změnit;
+/// aplikace ho proto po každém startu znovu ohlásí. Když FCM token odmítne
+/// jako neplatný, záznam se smaže.
+model DeviceToken {
+  id         String         @id @default(uuid())
+  userId     String
+  token      String         @unique
+  platform   DevicePlatform
+  createdAt  DateTime       @default(now())
+  lastSeenAt DateTime       @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 /// Rotující refresh tokeny — ukládá se jen hash, nikdy samotný token.
