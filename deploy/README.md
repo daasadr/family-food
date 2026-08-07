@@ -26,6 +26,20 @@ druhý kontejner se statickými soubory a druhý port.
 Porty 3000–3002 jsou obsazené jinými projekty, proto 3004. Nic neposlouchá na
 veřejném rozhraní — ven se lze dostat jedině přes nginx.
 
+## Práva u service accountu
+
+Kontejner běží pod uživatelem `node`, který má v oficiálním Node image
+**UID 1000**. Soubor s klíčem proto musí patřit UID 1000, jinak ho aplikace
+nepřečte a push notifikace tiše nefungují (v logu je varování).
+
+```bash
+chown 1000:1000 deploy/firebase-service-account.json
+chmod 400 deploy/firebase-service-account.json
+```
+
+Práva `600` s vlastníkem root nestačí, a `644` by zase klíč zpřístupnila
+všem uživatelům sdíleného serveru.
+
 ## První nasazení
 
 ```bash
