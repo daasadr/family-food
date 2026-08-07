@@ -43,6 +43,26 @@ class ApiService {
   Future<void> logout(String refreshToken) =>
       _client.post<void>('/auth/logout', body: {'refreshToken': refreshToken});
 
+  // --- Push notifikace --------------------------------------------------
+
+  /// Ohlásí FCM token zařízení. Volá se po každém startu — token se mění.
+  Future<DeviceRegistration> registerDevice({
+    required String token,
+    required String platform,
+  }) async {
+    final data = await _client.post<Map<String, dynamic>>(
+      '/notifications/devices',
+      body: {'token': token, 'platform': platform},
+    );
+    return DeviceRegistration.fromJson(data);
+  }
+
+  /// Odhlásí zařízení z notifikací — volá se při odhlášení uživatele.
+  Future<void> unregisterDevice(String token) => _client.delete<void>(
+        '/notifications/devices',
+        body: {'token': token},
+      );
+
   /// Co smazání účtu způsobí — načítá se před potvrzovacím dialogem.
   Future<DeletionPreview> deletionPreview() async {
     final data =

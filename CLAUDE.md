@@ -62,6 +62,17 @@ D:\dev\pgsql\bin\pg_ctl.exe -D D:\dev\pgdata -l D:\dev\pgdata\server.log start
   implementace dělá totéž.
 - `flutter_secure_storage` je držený na řadě **9.x**; 10.x přidává další nativní
   závislosti bez přínosu pro naše použití.
+- **Gradle heap.** Šablona nastavovala `-Xmx8G -XX:MaxMetaspaceSize=4G`. Na tomhle
+  stroji build padal na `insufficient memory for the Java Runtime` — Windows to
+  nedokáže podložit, stránkovací soubor je na skoro plném `D:`. Sníženo na
+  `-Xmx3G` + `-Xmx1G` pro Kotlin démona; build s Firebase tak projde. Nezvyšuj
+  to zpátky bez důvodu.
+- **Dva Firebase soubory, dva různé režimy utajení:**
+  `app/android/app/google-services.json` **je v gitu** — Google ho za tajný
+  nepovažuje, je uvnitř každého APK a skrývání nic nechrání. Naproti tomu
+  `deploy/firebase-service-account.json` je **skutečný privátní klíč** a
+  v gitu být nesmí; `.gitignore` chytá i původní název ze stahování
+  (`*-firebase-adminsdk-*.json`), protože přejmenovat se snadno zapomene.
 - Android build zabere ~1,5 GB v `app/build/`. Po `flutter build apk` je dobré
   `flutter clean`, pokud se místo tenčí.
 

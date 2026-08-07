@@ -46,6 +46,8 @@ dependencies:
   flutter_secure_storage: ^9.2.4
   # Verzi drží flutter_localizations ze SDK — nezvyšovat ručně.
   intl: ^0.20.2
+  firebase_core: ^4.13.0
+  firebase_messaging: ^16.5.0
 
 dependency_overrides:
   # path_provider_android 2.3+ táhne balíček `jni` s nativním kódem. Kvůli němu

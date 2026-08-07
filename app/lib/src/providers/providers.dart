@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/api_client.dart';
 import '../core/api_service.dart';
 import '../core/date_utils.dart';
+import '../core/push_service.dart';
 import '../core/token_storage.dart';
 import '../models/models.dart';
 
@@ -117,6 +118,11 @@ class AuthNotifier extends Notifier<AuthState> {
   }
 
   Future<void> logout() async {
+    // Zařízení odhlásit dřív než token — bez platného tokenu už by
+    // požadavek neprošel a notifikace rodiny by chodily dál i tomu,
+    // kdo se na sdíleném telefonu odhlásil.
+    await ref.read(pushServiceProvider).stop();
+
     final refreshToken = await _storage.readRefreshToken();
     if (refreshToken != null) {
       try {
@@ -222,6 +228,14 @@ final commentsProvider = FutureProvider.family<List<MealComment>, String>(
 final galleryProvider = FutureProvider.family<List<GalleryItem>, String>(
   (ref, search) => ref.watch(apiServiceProvider).gallery(search: search),
 );
+
+// --- Push notifikace ----------------------------------------------------
+
+final pushServiceProvider = Provider<PushService>((ref) {
+  final service = PushService(ref.watch(apiServiceProvider));
+  ref.onDispose(service.dispose);
+  return service;
+});
 
 // --- Nákupní seznam -----------------------------------------------------
 

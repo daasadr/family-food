@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "443982871921",
+    "project_id": "famiyfood-7bb86",
+    "storage_bucket": "famiyfood-7bb86.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:443982871921:android:c9b3e81024243c5d7ecad0",
+        "android_client_info": {
+          "package_name": "cz.familyfood.family_food"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBKIwWs741l4wCmeGNjHBHiQVI2tHSmtgU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

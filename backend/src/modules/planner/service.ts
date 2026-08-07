@@ -303,6 +303,18 @@ export class PlannerService {
     return serializeProposal(proposal, userId);
   }
 
+  /**
+   * Datum dne, do kterého návrh patří. Push notifikace ho potřebuje —
+   * detail jídla se v aplikaci otevírá cestou /day/:date/proposal/:id.
+   */
+  async getProposalDate(familyId: string, proposalId: string): Promise<string | null> {
+    const proposal = await this.prisma.mealProposal.findFirst({
+      where: { id: proposalId, mealSlot: { familyId } },
+      select: { mealSlot: { select: { date: true } } },
+    });
+    return proposal ? formatDateOnly(proposal.mealSlot.date) : null;
+  }
+
   async updateProposal(
     familyId: string,
     userId: string,

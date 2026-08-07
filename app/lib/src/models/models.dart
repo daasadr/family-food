@@ -386,6 +386,23 @@ class MealComment {
       );
 }
 
+/// Odpověď na registraci zařízení pro push notifikace.
+class DeviceRegistration {
+  const DeviceRegistration({required this.registered, required this.pushEnabled});
+
+  final bool registered;
+
+  /// False, když server nemá nastavené FCM — notifikace nedorazí,
+  /// i když registrace proběhla.
+  final bool pushEnabled;
+
+  factory DeviceRegistration.fromJson(Map<String, dynamic> json) =>
+      DeviceRegistration(
+        registered: json['registered'] as bool,
+        pushEnabled: json['pushEnabled'] as bool,
+      );
+}
+
 /// Co způsobí smazání účtu. Načítá se před potvrzovacím dialogem, aby
 /// varování bylo konkrétní — poslednímu členovi mizí i celá rodina.
 class DeletionPreview {

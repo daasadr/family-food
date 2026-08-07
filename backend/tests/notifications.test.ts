@@ -201,6 +201,10 @@ describe('notifikace o návrhu jídla', () => {
     expect(fake.calls[0]!.message.body).toContain('Petra');
     expect(fake.calls[0]!.message.body).toContain('Rajská omáčka');
     expect(fake.calls[0]!.message.data?.type).toBe('proposal');
+    // Bez data nejde v aplikaci otevřít detail jídla — cesta je
+    // /day/:date/proposal/:id.
+    expect(fake.calls[0]!.message.data?.date).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    expect(fake.calls[0]!.message.data?.proposalId).toBeTruthy();
   });
 
   it('nedostane se k členům jiné rodiny', async () => {
@@ -256,6 +260,7 @@ describe('notifikace o komentáři', () => {
     expect(fake.calls[0]!.message.body).toContain('Petra');
     expect(fake.calls[0]!.message.body).toContain('Radši s vejcem');
     expect(fake.calls[0]!.message.data?.type).toBe('comment');
+    expect(fake.calls[0]!.message.data?.date).toMatch(/^\d{4}-\d{2}-\d{2}$/);
   });
 });
 

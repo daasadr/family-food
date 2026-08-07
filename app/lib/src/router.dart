@@ -21,7 +21,15 @@ final routerProvider = Provider<GoRouter>((ref) {
   ref.listen(authProvider, (_, __) => refresh.value++);
   ref.onDispose(refresh.dispose);
 
-  return GoRouter(
+  // Push se zapíná až po přihlášení — dřív nemáme komu token přiřadit.
+  // O povolení notifikací se tak žádá ve chvíli, kdy uživateli dává smysl.
+  ref.listen(authProvider, (previous, next) {
+    if (next is Authenticated && previous is! Authenticated) {
+      ref.read(pushServiceProvider).start();
+    }
+  }, fireImmediately: true);
+
+  final router = GoRouter(
     initialLocation: '/',
     refreshListenable: refresh,
     redirect: (context, state) {
@@ -98,4 +106,19 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
     ],
   );
+
+  // Ťuknutí na notifikaci otevře přímo dotčené jídlo. Bez data v datech
+  // zprávy detail otevřít nejde, tak aspoň skočíme na daný den.
+  final tapSub = ref.read(pushServiceProvider).taps.listen((tap) {
+    final date = tap.date;
+    if (date == null) return;
+    if (tap.proposalId != null) {
+      router.go('/day/$date/proposal/${tap.proposalId}');
+    } else {
+      router.go('/day/$date');
+    }
+  });
+  ref.onDispose(tapSub.cancel);
+
+  return router;
 });

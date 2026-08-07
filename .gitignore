@@ -50,6 +50,10 @@ deploy/.env
 deploy/backups/
 deploy/firebase-service-account.json
 
-# Firebase — service account je tajný klíč, nikdy do gitu
+# Firebase — service account je tajný klíč, nikdy do gitu.
+# Klíč se stahuje pod vlastním názvem typu
+# `<projekt>-firebase-adminsdk-<hash>.json`, takže se ignoruje i ten tvar —
+# přejmenovat na firebase-service-account.json se snadno zapomene.
 **/firebase-service-account.json
-backend/firebase-service-account.json
+**/*-firebase-adminsdk-*.json
+**/serviceAccountKey.json

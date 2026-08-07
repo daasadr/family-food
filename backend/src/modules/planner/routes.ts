@@ -196,13 +196,18 @@ const plannerRoutes: FastifyPluginAsyncZod = async (app) => {
 
       // Ostatní ať vědí, že je o čem hlasovat. Odesílá se na pozadí —
       // nedostupné FCM nesmí shodit uložení návrhu.
+      const date = await service.getProposalDate(req.familyId, proposal.id);
       app.notifications.notifyFamilyInBackground({
         familyId: req.familyId,
         excludeUserId: req.auth.userId,
         message: {
           title: 'Nový návrh jídla',
           body: `${proposal.proposedBy.name} navrhuje: ${proposal.title}`,
-          data: { type: 'proposal', proposalId: proposal.id },
+          data: {
+            type: 'proposal',
+            proposalId: proposal.id,
+            ...(date ? { date } : {}),
+          },
         },
       });
 
@@ -343,13 +348,18 @@ const plannerRoutes: FastifyPluginAsyncZod = async (app) => {
         req.params.proposalId,
       );
 
+      const date = await service.getProposalDate(req.familyId, req.params.proposalId);
       app.notifications.notifyFamilyInBackground({
         familyId: req.familyId,
         excludeUserId: req.auth.userId,
         message: {
           title: `Komentář k jídlu ${proposal.title}`,
           body: `${comment.author.name}: ${comment.text}`,
-          data: { type: 'comment', proposalId: req.params.proposalId },
+          data: {
+            type: 'comment',
+            proposalId: req.params.proposalId,
+            ...(date ? { date } : {}),
+          },
         },
       });
 
