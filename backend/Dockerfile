@@ -23,11 +23,25 @@ COPY src ./src
 RUN npm run build
 
 # --- produkční závislosti ----------------------------------------------
+# Vlastní stage, aby se do běhového obrazu nedostaly tsx, vitest ani
+# TypeScript. Prisma CLI je naopak v `dependencies`, protože ji entrypoint
+# potřebuje na `migrate deploy` — a jen tak vznikne i správný odkaz
+# v node_modules/.bin, bez kterého by se ji npx pokoušel stáhnout z internetu.
 FROM node:22-slim AS deps
 
 WORKDIR /app
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends openssl ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
 COPY package.json package-lock.json ./
-RUN npm ci --omit=dev
+# Schéma musí být na místě dřív, než postinstall @prisma/client zkusí
+# vygenerovat klienta.
+COPY prisma ./prisma
+RUN npm ci --omit=dev \
+    && npx prisma generate \
+    && npm cache clean --force
 
 # --- runtime -----------------------------------------------------------
 FROM node:22-slim AS runner
@@ -42,13 +56,6 @@ ENV NODE_ENV=production
 
 COPY package.json ./
 COPY --from=deps /app/node_modules ./node_modules
-
-# Prisma CLI (kvůli `migrate deploy` při startu) a vygenerovaný klient.
-# Kopírují se z builderu, aby v obrazu nezůstaly ostatní vývojové balíčky.
-COPY --from=builder /app/node_modules/prisma ./node_modules/prisma
-COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
-COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
-
 COPY --from=builder /app/dist ./dist
 COPY prisma ./prisma
 COPY public ./public
